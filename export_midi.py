@@ -75,5 +75,5 @@ def main():
 
     process_midi(midi_path)
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

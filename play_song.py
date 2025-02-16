@@ -54,7 +54,7 @@ def play_song(folder_name):
         # Play through each timestamp
         for i in range(len(timestamps) - 1):
             if stop_event.is_set():
-                print("\nPlayback stopped")
+                print('\nPlayback stopped')
                 return
 
             # Calculate how long to wait
@@ -82,13 +82,13 @@ def play_song(folder_name):
         print(f"\rProgress: {format_time(total_duration)} / {format_time(total_duration)}")
 
     except KeyboardInterrupt:
-        print("\nPlayback stopped")
+        print('\nPlayback stopped')
     finally:
         keyboard.unhook_all()
 
 def main():
     if len(sys.argv) != 2:
-        print("Usage: python play_song.py <song_folder>")
+        print('Usage: python play_song.py <song_folder>')
         sys.exit(1)
 
     folder_name = sys.argv[1]
@@ -102,5 +102,5 @@ def main():
 
     play_song(folder_name)
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
