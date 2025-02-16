@@ -2,9 +2,8 @@ use std::env;
 use std::path::Path;
 use std::process;
 
-mod player;
 mod midi;
-mod config;
+mod keyboard;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -26,9 +25,12 @@ fn main() {
                 eprintln!("Error: Folder {} not found", path);
                 process::exit(1);
             }
-            if let Err(e) = player::play_song(path) {
-                eprintln!("Error playing song: {}", e);
-                process::exit(1);
+            match keyboard::SongPlayer::new().and_then(|mut player| player.play_song(path)) {
+                Ok(_) => (),
+                Err(e) => {
+                    eprintln!("Error playing song: {}", e);
+                    process::exit(1);
+                }
             }
         }
         "export" => {
