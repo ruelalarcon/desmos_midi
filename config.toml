@@ -7,7 +7,7 @@ note_delay_ms = 0
 [keyboard]
 # Key to stop playback
 stop_key = "f"
-# Sequence of keys to press to start playing
+# Sequence of keys to for the initial note array
 start_sequence = ["tab", "tab", "enter"]
 # Sequence of keys to press to move to next note
 next_sequence = ["tab", "tab", "tab", "enter"]
