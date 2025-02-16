@@ -8,7 +8,7 @@ import mido
 
 def midi_note_to_relative(note):
     """Convert MIDI note number to relative position from middle C (60)"""
-    return note - 60
+    return note - 58 # Desmos formula uses Bb as the root note (0)
 
 def create_export_folder(midi_path):
     """Create folder based on MIDI filename"""
