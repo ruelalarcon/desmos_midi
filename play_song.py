@@ -1,9 +1,17 @@
 import json
 import os
-import time
-import keyboard
 import sys
+import time
 from threading import Event
+
+import keyboard
+import tomli
+
+
+def load_config():
+    """Load configuration from config.toml"""
+    with open('config.toml', 'rb') as f:
+        return tomli.load(f)
 
 def load_song_data(folder_name):
     """Load the song data from data.json"""
@@ -18,7 +26,8 @@ def format_time(ms):
     return f"{minutes:02d}:{seconds:02d}"
 
 def play_song(folder_name):
-    # Load song data
+    # Load config and song data
+    config = load_config()
     song_data = load_song_data(folder_name)
 
     # Convert timestamps to integers and sort them
@@ -27,24 +36,23 @@ def play_song(folder_name):
 
     # Create stop event
     stop_event = Event()
-    keyboard.on_press_key('f', lambda _: stop_event.set())
+    keyboard.on_press_key(config['keyboard']['stop_key'], lambda _: stop_event.set())
 
-    print(f"Playing {folder_name} in 3 seconds...")
-    print("Press 'f' to stop playback")
+    print(f"Playing {folder_name} in {config['timing']['initial_delay']} seconds...")
+    print(f"Press '{config['keyboard']['stop_key']}' to stop playback")
     print(f"Total duration: {format_time(total_duration)}")
-    time.sleep(3)
+    time.sleep(config['timing']['initial_delay'])
 
-    # Simulate initial tab-tab-enter to start playing
-    keyboard.send('tab')
-    keyboard.send('tab')
-    keyboard.send('enter')
+    # Simulate initial key sequence to start playing
+    for key in config['keyboard']['start_sequence']:
+        keyboard.send(key)
 
     # Record start time
     start_time = time.time() * 1000  # Convert to milliseconds
 
     try:
         # Play through each timestamp
-        for i in range(len(timestamps) - 1):  # -1 because we don't need to transition after the last note
+        for i in range(len(timestamps) - 1):
             if stop_event.is_set():
                 print("\nPlayback stopped")
                 return
@@ -62,11 +70,13 @@ def play_song(folder_name):
             if wait_time > 0:
                 time.sleep(wait_time)
 
-            # Simulate tab-tab-tab-enter to move to next note array
-            keyboard.send('tab')
-            keyboard.send('tab')
-            keyboard.send('tab')
-            keyboard.send('enter')
+            # Add configured delay
+            if config['timing']['note_delay_ms'] > 0:
+                time.sleep(config['timing']['note_delay_ms'] / 1000)
+
+            # Simulate configured key sequence to move to next note
+            for key in config['keyboard']['next_sequence']:
+                keyboard.send(key)
 
         # Show final progress
         print(f"\rProgress: {format_time(total_duration)} / {format_time(total_duration)}")

@@ -1,8 +1,10 @@
-import mido
 import json
 import os
 import sys
 from collections import defaultdict
+
+import mido
+
 
 def midi_note_to_relative(note):
     """Convert MIDI note number to relative position from middle C (60)"""

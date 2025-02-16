@@ -1,0 +1,13 @@
+[timing]
+# Initial delay before starting playback (seconds)
+initial_delay = 3
+# Additional delay between notes for timing adjustment (milliseconds)
+note_delay_ms = 0
+
+[keyboard]
+# Key to stop playback
+stop_key = "f"
+# Sequence of keys to press to start playing
+start_sequence = ["tab", "tab", "enter"]
+# Sequence of keys to press to move to next note
+next_sequence = ["tab", "tab", "tab", "enter"]
