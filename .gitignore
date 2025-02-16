@@ -1,0 +1,6 @@
+__pycache
+*.pyc
+.vscode/
+*/
+*.midi
+*.mid
