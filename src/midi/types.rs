@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 pub type Timestamp = u64;
 pub type MidiNote = u8;
 pub type RelativeNote = i32;
@@ -16,13 +14,10 @@ pub struct ProcessedSong {
 }
 
 impl ProcessedSong {
-    pub fn to_json_map(&self) -> HashMap<String, Vec<RelativeNote>> {
+    pub fn to_timing_data(&self) -> Vec<Timestamp> {
         self.note_changes
             .iter()
-            .map(|event| {
-                (event.timestamp.to_string(),
-                 event.notes.iter().map(|&n| midi_note_to_relative(n)).collect())
-            })
+            .map(|event| event.timestamp)
             .collect()
     }
 

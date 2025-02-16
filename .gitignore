@@ -10,7 +10,7 @@ Cargo.lock
 .vscode/
 
 # Output
-data.json
+timing.bin
 formulas.txt
 *.midi
 *.mid

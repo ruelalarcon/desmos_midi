@@ -1,20 +1,26 @@
 use std::error::Error;
 use std::fs::{self, File};
-use std::io::Write;
+use std::io::{Write, BufWriter};
 use std::path::{Path, PathBuf};
 use super::types::ProcessedSong;
 
 pub fn export_song(song: &ProcessedSong, midi_path: &str) -> Result<(), Box<dyn Error>> {
     let folder_name = create_export_folder(midi_path)?;
-    export_json(song, &folder_name)?;
+    export_timing(song, &folder_name)?;
     export_formulas(song, &folder_name)?;
     Ok(())
 }
 
-fn export_json(song: &ProcessedSong, folder: &Path) -> Result<(), Box<dyn Error>> {
-    let json_path = folder.join("data.json");
-    let json_string = serde_json::to_string_pretty(&song.to_json_map())?;
-    fs::write(json_path, json_string)?;
+fn export_timing(song: &ProcessedSong, folder: &Path) -> Result<(), Box<dyn Error>> {
+    let timing_path = folder.join("timing.bin");
+    let file = File::create(timing_path)?;
+    let mut writer = BufWriter::new(file);
+
+    // Write timestamps as binary data
+    for timestamp in song.to_timing_data() {
+        writer.write_all(&timestamp.to_le_bytes())?;
+    }
+
     Ok(())
 }
 
