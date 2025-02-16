@@ -94,6 +94,7 @@ fn format_time(ms: i64) -> String {
 
 fn send_key(enigo: &mut Enigo, key: &str) {
     match key.to_lowercase().as_str() {
+        // Special keys
         "right" => enigo.key_click(Key::RightArrow),
         "left" => enigo.key_click(Key::LeftArrow),
         "space" => enigo.key_click(Key::Space),
@@ -102,7 +103,49 @@ fn send_key(enigo: &mut Enigo, key: &str) {
         "up" => enigo.key_click(Key::UpArrow),
         "down" => enigo.key_click(Key::DownArrow),
         "escape" | "esc" => enigo.key_click(Key::Escape),
-        // Add more key mappings as needed
+
+        // Function keys
+        "f1" => enigo.key_click(Key::F1),
+        "f2" => enigo.key_click(Key::F2),
+        "f3" => enigo.key_click(Key::F3),
+        "f4" => enigo.key_click(Key::F4),
+        "f5" => enigo.key_click(Key::F5),
+        "f6" => enigo.key_click(Key::F6),
+        "f7" => enigo.key_click(Key::F7),
+        "f8" => enigo.key_click(Key::F8),
+        "f9" => enigo.key_click(Key::F9),
+        "f10" => enigo.key_click(Key::F10),
+        "f11" => enigo.key_click(Key::F11),
+        "f12" => enigo.key_click(Key::F12),
+
+        // Single letter keys
+        "a" => enigo.key_click(Key::Layout('a')),
+        "b" => enigo.key_click(Key::Layout('b')),
+        "c" => enigo.key_click(Key::Layout('c')),
+        "d" => enigo.key_click(Key::Layout('d')),
+        "e" => enigo.key_click(Key::Layout('e')),
+        "f" => enigo.key_click(Key::Layout('f')),
+        "g" => enigo.key_click(Key::Layout('g')),
+        "h" => enigo.key_click(Key::Layout('h')),
+        "i" => enigo.key_click(Key::Layout('i')),
+        "j" => enigo.key_click(Key::Layout('j')),
+        "k" => enigo.key_click(Key::Layout('k')),
+        "l" => enigo.key_click(Key::Layout('l')),
+        "m" => enigo.key_click(Key::Layout('m')),
+        "n" => enigo.key_click(Key::Layout('n')),
+        "o" => enigo.key_click(Key::Layout('o')),
+        "p" => enigo.key_click(Key::Layout('p')),
+        "q" => enigo.key_click(Key::Layout('q')),
+        "r" => enigo.key_click(Key::Layout('r')),
+        "s" => enigo.key_click(Key::Layout('s')),
+        "t" => enigo.key_click(Key::Layout('t')),
+        "u" => enigo.key_click(Key::Layout('u')),
+        "v" => enigo.key_click(Key::Layout('v')),
+        "w" => enigo.key_click(Key::Layout('w')),
+        "x" => enigo.key_click(Key::Layout('x')),
+        "y" => enigo.key_click(Key::Layout('y')),
+        "z" => enigo.key_click(Key::Layout('z')),
+
         _ => eprintln!("Unsupported key: {}", key),
     }
 }
@@ -110,6 +153,7 @@ fn send_key(enigo: &mut Enigo, key: &str) {
 fn is_key_pressed(device_state: &DeviceState, key: &str) -> bool {
     let keys: Vec<Keycode> = device_state.get_keys();
     match key.to_lowercase().as_str() {
+        // Special keys
         "esc" | "escape" => keys.contains(&Keycode::Escape),
         "tab" => keys.contains(&Keycode::Tab),
         "enter" | "return" => keys.contains(&Keycode::Enter),
@@ -118,6 +162,49 @@ fn is_key_pressed(device_state: &DeviceState, key: &str) -> bool {
         "right" => keys.contains(&Keycode::Right),
         "up" => keys.contains(&Keycode::Up),
         "down" => keys.contains(&Keycode::Down),
+
+        // Function keys
+        "f1" => keys.contains(&Keycode::F1),
+        "f2" => keys.contains(&Keycode::F2),
+        "f3" => keys.contains(&Keycode::F3),
+        "f4" => keys.contains(&Keycode::F4),
+        "f5" => keys.contains(&Keycode::F5),
+        "f6" => keys.contains(&Keycode::F6),
+        "f7" => keys.contains(&Keycode::F7),
+        "f8" => keys.contains(&Keycode::F8),
+        "f9" => keys.contains(&Keycode::F9),
+        "f10" => keys.contains(&Keycode::F10),
+        "f11" => keys.contains(&Keycode::F11),
+        "f12" => keys.contains(&Keycode::F12),
+
+        // Single letter keys
+        "a" => keys.contains(&Keycode::A),
+        "b" => keys.contains(&Keycode::B),
+        "c" => keys.contains(&Keycode::C),
+        "d" => keys.contains(&Keycode::D),
+        "e" => keys.contains(&Keycode::E),
+        "f" => keys.contains(&Keycode::F),
+        "g" => keys.contains(&Keycode::G),
+        "h" => keys.contains(&Keycode::H),
+        "i" => keys.contains(&Keycode::I),
+        "j" => keys.contains(&Keycode::J),
+        "k" => keys.contains(&Keycode::K),
+        "l" => keys.contains(&Keycode::L),
+        "m" => keys.contains(&Keycode::M),
+        "n" => keys.contains(&Keycode::N),
+        "o" => keys.contains(&Keycode::O),
+        "p" => keys.contains(&Keycode::P),
+        "q" => keys.contains(&Keycode::Q),
+        "r" => keys.contains(&Keycode::R),
+        "s" => keys.contains(&Keycode::S),
+        "t" => keys.contains(&Keycode::T),
+        "u" => keys.contains(&Keycode::U),
+        "v" => keys.contains(&Keycode::V),
+        "w" => keys.contains(&Keycode::W),
+        "x" => keys.contains(&Keycode::X),
+        "y" => keys.contains(&Keycode::Y),
+        "z" => keys.contains(&Keycode::Z),
+
         _ => {
             eprintln!("Unsupported key for detection: {}", key);
             false
