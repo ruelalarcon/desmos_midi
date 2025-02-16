@@ -44,26 +44,37 @@ impl SongPlayer {
         }
 
         let start_time = Instant::now();
+        let update_interval = Duration::from_millis(100); // Update every 100ms
+        let mut last_update = Instant::now();
 
         for i in 0..timestamps.len() - 1 {
-            // Check for stop key
-            if self.keyboard.is_key_pressed(&self.config.keyboard.stop_key) {
-                println!("\nPlayback stopped");
-                return Ok(());
-            }
-
-            let elapsed = start_time.elapsed().as_millis() as i64;
             let next_timestamp = timestamps[i + 1];
 
-            // Show progress
-            print!("\rProgress: {} / {}",
-                   format_time(elapsed),
-                   format_time(total_duration));
+            loop {
+                // Check for stop key
+                if self.keyboard.is_key_pressed(&self.config.keyboard.stop_key) {
+                    println!("\nPlayback stopped");
+                    return Ok(());
+                }
 
-            // Wait until it's time for the next note
-            let wait_time = next_timestamp - elapsed;
-            if wait_time > 0 {
-                thread::sleep(Duration::from_millis(wait_time as u64));
+                let elapsed = start_time.elapsed().as_millis() as i64;
+
+                // Update progress display if enough time has passed
+                if last_update.elapsed() >= update_interval {
+                    print!("\rProgress: {} / {}",
+                           format_time(elapsed),
+                           format_time(total_duration));
+                    std::io::Write::flush(&mut std::io::stdout())?;
+                    last_update = Instant::now();
+                }
+
+                // Check if it's time for the next note
+                if elapsed >= next_timestamp {
+                    break;
+                }
+
+                // Sleep for a short duration to prevent busy waiting
+                thread::sleep(Duration::from_millis(10));
             }
 
             // Add configured delay
@@ -77,6 +88,7 @@ impl SongPlayer {
             }
         }
 
+        // Show final progress
         println!("\rProgress: {} / {}",
                  format_time(total_duration),
                  format_time(total_duration));
