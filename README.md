@@ -1,4 +1,4 @@
-# MIDI Player
+# Desmos Music Player
 
 > A Rust-based CLI tool for converting MIDI files into formulas and inputs for Desmos.
 
@@ -137,6 +137,11 @@ During playback:
 - `enigo`: Keyboard input simulation
 - `serde`: Configuration file parsing
 - `toml`: TOML configuration format
+
+## Credits
+
+- [Desmos](https://www.desmos.com/) for the formula visualization
+- [Berrynote](https://www.youtube.com/@berrynote/videos) for the initial graph for playing notes on Desmos. [Berrynote's recent video](https://www.youtube.com/watch?v=g2Lp-gIa3es) was the inspiration and base for this project.
 
 ## Contributing
 
