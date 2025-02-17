@@ -39,6 +39,8 @@ Convert a MIDI file to playable format:
 ./export.bat song.mid # Use export.sh instead of export.bat for Linux/Mac
 ```
 
+The first time this is run, it will install all the necessary Rust dependencies before exporting the song.
+
 This will create a folder named `song`. Inside it, open `formulas.txt` in a text editor to view the Desmos formulas, and simply copy paste them into a Desmos formula box. This should paste a bunch of formulas into desmos. Scroll to the top until you can see the first formula/box with an arrow to its left:
 
 ![First formula](./assets/first_arrow_box.png)
