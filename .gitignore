@@ -10,7 +10,13 @@ Cargo.lock
 .vscode/
 
 # Output
-timing.bin
-formulas.txt
+bin/
+*.exe
 *.midi
 *.mid
+
+# Ensure scripts maintain their line endings
+*.sh text eol=lf
+*.bat text eol=crlf
+clean.sh text eol=lf
+clean.bat text eol=crlf
