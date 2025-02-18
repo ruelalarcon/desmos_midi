@@ -1,22 +1,26 @@
 use std::error::Error;
 use std::fs::File;
 use std::io::Write;
-use std::path::Path;
+use clipboard::{ClipboardContext, ClipboardProvider};
 use super::types::ProcessedSong;
 
-pub fn export_song(song: &ProcessedSong, midi_path: &str) -> Result<(), Box<dyn Error>> {
-    let output_path = create_output_path(midi_path)?;
-    let mut file = File::create(output_path)?;
-    write!(file, "{}", song.to_piecewise_function())?;
-    Ok(())
-}
+pub fn export_song(song: &ProcessedSong, output_path: Option<&str>) -> Result<(), Box<dyn Error>> {
+    let formula = song.to_piecewise_function();
 
-fn create_output_path(midi_path: &str) -> Result<String, Box<dyn Error>> {
-    let path = Path::new(midi_path);
-    let stem = path.file_stem()
-        .ok_or("Invalid MIDI filename")?
-        .to_string_lossy()
-        .into_owned();
-    
-    Ok(format!("{}.txt", stem))
+    match output_path {
+        Some(path) => {
+            // Export to file
+            let mut file = File::create(path)?;
+            write!(file, "{}", formula)?;
+            println!("Exported to file: {}", path);
+        }
+        None => {
+            // Copy to clipboard
+            let mut ctx = ClipboardContext::new()?;
+            ctx.set_contents(formula)?;
+            println!("Copied to clipboard!");
+        }
+    }
+
+    Ok(())
 }
