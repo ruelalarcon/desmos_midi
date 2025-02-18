@@ -1,6 +1,6 @@
 # Desmos Music Player
 
-> A Rust-based CLI tool for converting MIDI files into formulas and inputs for Desmos.
+> A Rust-based CLI tool for converting MIDI files into formulas for Desmos.
 
 ## Installation
 
@@ -13,78 +13,31 @@ cd desmos_music
 
 ## Usage
 
-First, navigate to this [Desmos graph](https://www.desmos.com/calculator/zmrpkgga74), and enable audio through the button in the top left:
-
-![Enable audio](./assets/enable_audio.png)
-
-The MIDI Player has two main commands:
+Once you have a MIDI file you wish to use, run the following command:
 
 ```bash
-# Export a MIDI file
-./export.bat <midi_file>    # Windows
-./export.sh <midi_file>     # Linux/Mac
-
-# Play a converted song
-./play.bat <song_folder>    # Windows
-./play.sh <song_folder>     # Linux/Mac
+cargo run <midi_file> [output_file]
 ```
-
 - `<midi_file>`: Path to the input MIDI file to convert
-- `<song_folder>`: Path to a folder containing the converted song data, when exported, this will be given the same name as the MIDI file without the file extension
+- `<output_file>`: Path to a file to export the formula to, if not provided, the formula will be copied to the clipboard.
 
 ### Usage Examples
 
-Convert a MIDI file to playable format:
+Convert MIDI file `song.mid` to playable format:
 ```bash
-./export.bat song.mid # Use export.sh instead of export.bat for Linux/Mac
+cargo run song.mid
 ```
 
-The first time this is run, it will install all the necessary Rust dependencies before exporting the song.
+The first time this command is run, cargo will install all the necessary Rust dependencies before copying the formulas to the clipboard. After this, paste the contents of your clipboard into Desmos.
 
-This will create a folder named `song`. Inside it, open `formulas.txt` in a text editor to view the Desmos formulas, and simply copy paste them into a Desmos formula box. This should paste a bunch of formulas into desmos. Scroll to the top until you can see the first formula/box with an arrow to its left:
+Now enable audio in Desmos through the button in the top left:
+![Enable audio](./assets/enable_audio.png)
 
-![First formula](./assets/first_arrow_box.png)
+### Controls
 
-Now, play your converted song using:
-```bash
-./play.bat song
-```
-
-You should now have three seconds to select that first box, simply by clicking on it. After three seconds, the song will begin playing. If you find that three seconds is too short, you can change the `initial_delay` in the `config.toml` file to a larger number.
-
-### Configuration
-
-The program uses a `config.toml` file to customize keyboard inputs and timing:
-
-```toml
-[keyboard]
-stop_key = "f"                            # Key to stop playback
-start_sequence = ["tab", "tab", "enter"]       # Keys pressed at start
-next_sequence = ["tab", "tab", "tab", "enter"] # Keys pressed for each note
-
-[timing]
-initial_delay = 3 # Delay before starting (seconds)
-note_delay_ms = 0 # Additional delay between notes (milliseconds)
-```
-
-### Export Format
-
-When you export a MIDI file, two files are created in a folder named after the MIDI file:
-
-```
-song_name/
-├── timing.bin     # Binary file containing note timings
-└── formulas.txt   # Text file containing Desmos formulas
-```
-
-The `timing.bin` file contains the precise timestamps for each change in the note array (that is whenever the current notes being played changes), while `formulas.txt` contains the corresponding Desmos formulas for visualization.
-
-### Playback Controls
-
-During playback:
-- Press the configured stop key (default: f) to stop playback
-- A progress bar shows the current position and total duration
-- The program automatically advances through the song using the configured key sequences
+- To play the song, hit the arrow button to the left of the `t -> 0` formula.
+- To end the song, hit the arrow button to the left of the `t -> ∞` formula.
+- You may also set the value of `t` manually to seek to a specific point in the song.
 
 ## Technical Details
 
@@ -108,35 +61,16 @@ During playback:
 3. **Note Processing**:
    - Tracks active notes at each timestamp
    - Converts MIDI note numbers to relative positions from Bb (MIDI note 58)
-   - Generates Desmos formulas in the format `A\to\left[n1,n2,...]\right`
-   - Where `n1,n2,...` are the relative note positions
-
-### Playback System
-
-1. **Binary Format**:
-   - Stores timestamps as 64-bit integers in little-endian format
-   - Each 8-byte chunk represents one millisecond timestamp
-   - Efficient storage and quick loading during playback
-
-2. **Input Simulation**:
-   - Uses `enigo` for keyboard simulation
-   - Uses `device_query` for stop key detection
-   - Configurable key sequences for navigation
-   - Default sequence matches Desmos formula box navigation
-
-3. **Timing Control**:
-   - Uses system time (`std::time::Instant`) for precise timing
-   - Updates progress display every 100ms
-   - Sleeps between checks to reduce CPU usage
-   - Maintains synchronization between timestamps and inputs
+   - Generates a Desmos piecewise function in the format:
+     ```
+     A=\left\{t<1:\left[0,4,7\right],t<2:\left[2,5,9\right],...\right\}
+     ```
+   - Where each number represents semitones relative to Bb (0)
 
 ## Dependencies
 
 - `midly`: MIDI file parsing
-- `device_query`: Keyboard input detection
-- `enigo`: Keyboard input simulation
-- `serde`: Configuration file parsing
-- `toml`: TOML configuration format
+- `clipboard`: System clipboard integration
 
 ## Credits
 
