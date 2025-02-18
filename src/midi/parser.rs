@@ -12,44 +12,17 @@ pub fn parse_midi(midi_data: &[u8]) -> Result<ProcessedSong, Box<dyn Error>> {
         _ => return Err("Unsupported timing format".into()),
     };
 
-    let mut active_notes = Vec::new();
-    let mut note_changes: HashMap<Timestamp, Vec<MidiNote>> = HashMap::new();
-    let tempo: u32 = 500000; // Default tempo (120 BPM)
+    // Collect all events from all tracks with their absolute timestamps
+    let mut all_events = Vec::new();
+    let mut tempo: u32 = 500000; // Default tempo (120 BPM)
 
-    process_tracks(&smf.tracks, &mut active_notes, &mut note_changes, ticks_per_quarter, tempo)?;
-
-    let mut events: Vec<NoteEvent> = note_changes
-        .into_iter()
-        .map(|(timestamp, notes)| NoteEvent { timestamp, notes })
-        .collect();
-    events.sort_by_key(|event| event.timestamp);
-
-    Ok(ProcessedSong { note_changes: events })
-}
-
-fn process_tracks(
-    tracks: &[midly::Track],
-    active_notes: &mut Vec<MidiNote>,
-    note_changes: &mut HashMap<Timestamp, Vec<MidiNote>>,
-    ticks_per_quarter: u32,
-    mut tempo: u32,
-) -> Result<(), Box<dyn Error>> {
-    for track in tracks {
+    for track in smf.tracks.iter() {
         let mut track_time: u64 = 0;
-
-        for event in track.iter() {
+        for event in track {
             track_time += u64::from(event.delta.as_int());
-
             match event.kind {
                 TrackEventKind::Midi { message, .. } => {
-                    process_midi_message(
-                        message,
-                        active_notes,
-                        note_changes,
-                        track_time,
-                        tempo,
-                        ticks_per_quarter,
-                    );
+                    all_events.push((track_time, message));
                 }
                 TrackEventKind::Meta(meta_message) => {
                     if let midly::MetaMessage::Tempo(tempo_val) = meta_message {
@@ -60,33 +33,40 @@ fn process_tracks(
             }
         }
     }
-    Ok(())
-}
 
-fn process_midi_message(
-    message: midly::MidiMessage,
-    active_notes: &mut Vec<MidiNote>,
-    note_changes: &mut HashMap<Timestamp, Vec<MidiNote>>,
-    track_time: u64,
-    tempo: u32,
-    ticks_per_quarter: u32,
-) {
-    match message {
-        midly::MidiMessage::NoteOn { key, vel } => {
-            if vel.as_int() > 0 {
-                active_notes.push(key.as_int());
-                active_notes.sort_unstable();
-            } else {
-                active_notes.retain(|&x| x != key.as_int());
+    // Sort events by timestamp
+    all_events.sort_by_key(|(time, _)| *time);
+
+    // Process the merged events
+    let mut active_notes = Vec::new();
+    let mut note_changes: HashMap<Timestamp, Vec<MidiNote>> = HashMap::new();
+
+    for (track_time, message) in all_events {
+        match message {
+            midly::MidiMessage::NoteOn { key, vel } => {
+                if vel.as_int() > 0 {
+                    active_notes.push(key.as_int());
+                    active_notes.sort_unstable();
+                } else {
+                    active_notes.retain(|&x| x != key.as_int());
+                }
+                let ms = ticks_to_ms(track_time, tempo, ticks_per_quarter);
+                note_changes.insert(ms, active_notes.clone());
             }
-            let ms = ticks_to_ms(track_time, tempo, ticks_per_quarter);
-            note_changes.insert(ms, active_notes.clone());
+            midly::MidiMessage::NoteOff { key, .. } => {
+                active_notes.retain(|&x| x != key.as_int());
+                let ms = ticks_to_ms(track_time, tempo, ticks_per_quarter);
+                note_changes.insert(ms, active_notes.clone());
+            }
+            _ => {}
         }
-        midly::MidiMessage::NoteOff { key, .. } => {
-            active_notes.retain(|&x| x != key.as_int());
-            let ms = ticks_to_ms(track_time, tempo, ticks_per_quarter);
-            note_changes.insert(ms, active_notes.clone());
-        }
-        _ => {}
     }
+
+    let mut events: Vec<NoteEvent> = note_changes
+        .into_iter()
+        .map(|(timestamp, notes)| NoteEvent { timestamp, notes })
+        .collect();
+    events.sort_by_key(|event| event.timestamp);
+
+    Ok(ProcessedSong { note_changes: events })
 }
