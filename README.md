@@ -4,31 +4,75 @@
 
 ## Installation
 
-To use the MIDI Player, you must have [Rust](https://www.rust-lang.org/tools/install) installed on your system. Clone this repository and build the project:
+To use the MIDI Player, you must have [Rust](https://www.rust-lang.org/tools/install) installed on your system.
+
+### Prerequisites
+
+**Windows:**
+- No additional prerequisites
+
+**Linux/WSL (Ubuntu/Debian):**
+```bash
+# Install X11 development libraries
+sudo apt update
+sudo apt install libxcb1-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev
+```
+
+**Other Linux distributions:**
+- Equivalent X11 development packages for your package manager
+
+### Building
+
+Clone this repository and navigate to the directory:
 
 ```bash
 git clone https://github.com/ruelalarcon/desmos_music.git
 cd desmos_music
 ```
 
+Then build the project using the provided script:
+
+**Windows:**
+```bash
+./build.bat
+```
+
+**Linux/Mac:**
+```bash
+./build.sh
+```
+> Note: You may need to run `chmod +x *.sh` first to make the scripts executable if they aren't by default.
+
+To clean build artifacts at any time, you can use:
+```bash
+./clean.bat  # Windows
+./clean.sh   # Linux/Mac
+```
+
 ## Usage
 
 Once you have a MIDI file you wish to use, run the following command:
 
+**Windows:**
 ```bash
-cargo run <midi_file> [output_file]
+./run.bat <midi_file> [output_file]
 ```
+
+**Linux/Mac:**
+```bash
+./run.sh <midi_file> [output_file]
+```
+
 - `<midi_file>`: Path to the input MIDI file to convert
-- `<output_file>`: Path to a file to export the formula to, if not provided, the formula will be copied to the clipboard.
+- `<output_file>`: Path to a file to export the formula to, if not provided, the formula will be copied to the clipboard. This is necessary if you are using WSL on Windows.
 
 ### Usage Examples
 
-Convert MIDI file `song.mid` to playable format:
+Copy the formula to the clipboard for MIDI file `song.mid`:
 ```bash
-cargo run song.mid
+./run.sh song.mid  # Linux/Mac
+./run.bat song.mid  # Windows
 ```
-
-The first time this command is run, cargo will install all the necessary Rust dependencies before copying the formulas to the clipboard. After this, paste the contents of your clipboard into Desmos.
 
 Now enable audio in Desmos through the button in the top left:
 ![Enable audio](./assets/enable_audio.png)
