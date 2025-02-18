@@ -21,10 +21,13 @@ impl ProcessedSong {
 
         let mut pieces = Vec::new();
 
+        // Add initial empty array at t=0 if the first note doesn't start at 0
+        if self.note_changes[0].timestamp > 0 {
+            pieces.push("t<0:\\left[\\right]".to_string());
+        }
+
         for i in 0..self.note_changes.len() {
             let event = &self.note_changes[i];
-            let time = event.timestamp as f64 / 1000.0;
-
             let relative_notes: Vec<RelativeNote> = event.notes
                 .iter()
                 .map(|&n| midi_note_to_relative(n))
@@ -36,7 +39,16 @@ impl ProcessedSong {
                     .collect::<Vec<String>>()
                     .join(","));
 
-            pieces.push(format!("t<{}:{}", time, array_str));
+            // Get the end time for this note array (start time of next array)
+            let end_time = if i < self.note_changes.len() - 1 {
+                self.note_changes[i + 1].timestamp as f64 / 1000.0
+            } else {
+                // For the last note, use its own timestamp plus a small duration
+                // This ensures the last note plays for at least some time
+                (event.timestamp as f64 / 1000.0) + 0.001
+            };
+
+            pieces.push(format!("t<{}:{}", end_time, array_str));
         }
 
         format!("A=\\left\\{{{}\\right\\}}", pieces.join(","))
