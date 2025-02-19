@@ -2,6 +2,27 @@ pub type Timestamp = u64;
 pub type MidiNote = u8;
 pub type RelativeNote = i32;
 
+#[derive(Debug, Clone)]
+pub struct TempoChange {
+    pub tick: u64,
+    pub tempo: u32,
+}
+
+#[derive(Debug, Default)]
+pub struct TempoMap {
+    pub changes: Vec<TempoChange>,
+    pub ticks_per_quarter: u32,
+}
+
+impl TempoMap {
+    pub fn new(ticks_per_quarter: u32) -> Self {
+        Self {
+            changes: vec![TempoChange { tick: 0, tempo: 500000 }], // Default 120 BPM
+            ticks_per_quarter,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct NoteEvent {
     pub timestamp: Timestamp,

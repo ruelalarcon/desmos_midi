@@ -1,7 +1,7 @@
 use std::error::Error;
 use std::collections::HashMap;
 use midly::{Smf, TrackEventKind};
-use super::types::{Timestamp, MidiNote, NoteEvent, ProcessedSong};
+use super::types::{Timestamp, MidiNote, NoteEvent, ProcessedSong, TempoMap, TempoChange};
 use super::timing::ticks_to_ms;
 
 pub fn parse_midi(midi_data: &[u8]) -> Result<ProcessedSong, Box<dyn Error>> {
@@ -12,24 +12,40 @@ pub fn parse_midi(midi_data: &[u8]) -> Result<ProcessedSong, Box<dyn Error>> {
         _ => return Err("Unsupported timing format".into()),
     };
 
-    // Collect all events from all tracks with their absolute timestamps
-    let mut all_events = Vec::new();
-    let mut tempo: u32 = 500000; // Default tempo (120 BPM)
+    // Initialize tempo map
+    let mut tempo_map = TempoMap::new(ticks_per_quarter);
+    let mut tempo_changes = Vec::new();
 
+    // First pass: collect all tempo changes
     for track in smf.tracks.iter() {
         let mut track_time: u64 = 0;
         for event in track {
             track_time += u64::from(event.delta.as_int());
-            match event.kind {
-                TrackEventKind::Midi { message, .. } => {
-                    all_events.push((track_time, message));
-                }
-                TrackEventKind::Meta(meta_message) => {
-                    if let midly::MetaMessage::Tempo(tempo_val) = meta_message {
-                        tempo = tempo_val.as_int();
-                    }
-                }
-                _ => {}
+            if let TrackEventKind::Meta(midly::MetaMessage::Tempo(tempo_val)) = event.kind {
+                tempo_changes.push(TempoChange {
+                    tick: track_time,
+                    tempo: tempo_val.as_int(),
+                });
+            }
+        }
+    }
+
+    // Sort and merge tempo changes
+    tempo_changes.sort_by_key(|change| change.tick);
+    for change in tempo_changes {
+        if !tempo_map.changes.iter().any(|c| c.tick == change.tick) {
+            tempo_map.changes.push(change);
+        }
+    }
+
+    // Second pass: collect all note events
+    let mut all_events = Vec::new();
+    for track in smf.tracks.iter() {
+        let mut track_time: u64 = 0;
+        for event in track {
+            track_time += u64::from(event.delta.as_int());
+            if let TrackEventKind::Midi { message, .. } = event.kind {
+                all_events.push((track_time, message));
             }
         }
     }
@@ -50,12 +66,12 @@ pub fn parse_midi(midi_data: &[u8]) -> Result<ProcessedSong, Box<dyn Error>> {
                 } else {
                     active_notes.retain(|&x| x != key.as_int());
                 }
-                let ms = ticks_to_ms(track_time, tempo, ticks_per_quarter);
+                let ms = ticks_to_ms(track_time, &tempo_map);
                 note_changes.insert(ms, active_notes.clone());
             }
             midly::MidiMessage::NoteOff { key, .. } => {
                 active_notes.retain(|&x| x != key.as_int());
-                let ms = ticks_to_ms(track_time, tempo, ticks_per_quarter);
+                let ms = ticks_to_ms(track_time, &tempo_map);
                 note_changes.insert(ms, active_notes.clone());
             }
             _ => {}
