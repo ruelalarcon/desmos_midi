@@ -72,7 +72,7 @@ Once you have a MIDI file you wish to use, run the following command:
 
 Copy the formula to the clipboard for MIDI file `song.mid`:
 ```bash
-./run.sh song.mid  # Linux/Mac
+./run.sh song.mid   # Linux/Mac
 ./run.bat song.mid  # Windows
 ```
 
