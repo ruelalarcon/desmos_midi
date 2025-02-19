@@ -79,8 +79,8 @@ impl ProcessedSong {
             if current_length + piece.len() > MAX_FORMULA_LENGTH && !current_section.is_empty() {
                 // Create a new section
                 section_count += 1;
-                let section_name = (b'B' + section_count - 1) as char;
-                section_names.push(section_name);
+                let section_name = format!("A_{{{}}}", section_count);
+                section_names.push(section_name.clone());
 
                 let section_formula = format!("{}=\\left\\{{{}\\right\\}}",
                     section_name,
@@ -98,8 +98,8 @@ impl ProcessedSong {
         // Add the last section if it's not empty
         if !current_section.is_empty() {
             section_count += 1;
-            let section_name = (b'B' + section_count - 1) as char;
-            section_names.push(section_name);
+            let section_name = format!("A_{{{}}}", section_count);
+            section_names.push(section_name.clone());
 
             let section_formula = format!("{}=\\left\\{{{}\\right\\}}",
                 section_name,
@@ -130,7 +130,7 @@ impl ProcessedSong {
             formulas.insert(0, main_formula);
         } else {
             // If there's only one section, rename it to A
-            formulas[0] = formulas[0].replace('B', "A");
+            formulas[0] = formulas[0].replace("A_{1}", "A");
         }
 
         formulas.join("\n")
