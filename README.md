@@ -51,7 +51,7 @@ To clean build artifacts at any time, you can use:
 
 ## Usage
 
-Navigate to [this Desmos graph](https://www.desmos.com/calculator/9sa142djas).
+Navigate to [this Desmos graph](https://www.desmos.com/calculator/dtm0eynshz).
 
 Once you have a MIDI file you wish to use, run the following command:
 
