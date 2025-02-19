@@ -113,6 +113,11 @@ Now enable audio in Desmos through the button in the top left:
      ```
    - Where each number represents semitones relative to Bb (0)
 
+4. **Section Processing**:
+   - If a MIDI file is too long for Desmos to parse, the program will automatically split it into sections.
+   - The sections are named `A_1`, `A_2`, etc.
+   - The standard `A` array is now a piecewise function that chooses the correct section based on the value of `t`.
+
 ## Dependencies
 
 - `midly`: MIDI file parsing

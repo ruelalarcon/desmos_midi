@@ -39,7 +39,7 @@ pub fn parse_midi(midi_data: &[u8]) -> Result<ProcessedSong, Box<dyn Error>> {
 
     // Sort and merge tempo changes, ensuring they are in chronological order
     tempo_changes.sort_by_key(|change| change.tick);
-    
+
     // Merge tempo changes that occur at the same tick, keeping the last one
     let mut last_tick = None;
     for change in tempo_changes {
