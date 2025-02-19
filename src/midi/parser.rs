@@ -1,7 +1,7 @@
 use std::error::Error;
 use std::collections::HashMap;
 use midly::{Smf, TrackEventKind};
-use super::types::{Timestamp, MidiNote, NoteEvent, ProcessedSong, TempoMap, TempoChange};
+use super::types::{Timestamp, MidiNote, Velocity, NoteEvent, ProcessedSong, TempoMap, TempoChange};
 use super::timing::ticks_to_ms;
 
 pub fn parse_midi(midi_data: &[u8]) -> Result<ProcessedSong, Box<dyn Error>> {
@@ -54,23 +54,27 @@ pub fn parse_midi(midi_data: &[u8]) -> Result<ProcessedSong, Box<dyn Error>> {
     all_events.sort_by_key(|(time, _)| *time);
 
     // Process the merged events
-    let mut active_notes = Vec::new();
-    let mut note_changes: HashMap<Timestamp, Vec<MidiNote>> = HashMap::new();
+    let mut active_notes: Vec<(MidiNote, Velocity)> = Vec::new();
+    let mut note_changes: HashMap<Timestamp, Vec<(MidiNote, Velocity)>> = HashMap::new();
 
     for (track_time, message) in all_events {
         match message {
             midly::MidiMessage::NoteOn { key, vel } => {
                 if vel.as_int() > 0 {
-                    active_notes.push(key.as_int());
-                    active_notes.sort_unstable();
+                    // Remove any existing instance of this note
+                    active_notes.retain(|(n, _)| *n != key.as_int());
+                    // Add the new note with velocity
+                    active_notes.push((key.as_int(), vel.as_int()));
+                    active_notes.sort_unstable_by_key(|(n, _)| *n);
                 } else {
-                    active_notes.retain(|&x| x != key.as_int());
+                    // Treat as note off
+                    active_notes.retain(|(n, _)| *n != key.as_int());
                 }
                 let ms = ticks_to_ms(track_time, &tempo_map);
                 note_changes.insert(ms, active_notes.clone());
             }
             midly::MidiMessage::NoteOff { key, .. } => {
-                active_notes.retain(|&x| x != key.as_int());
+                active_notes.retain(|(n, _)| *n != key.as_int());
                 let ms = ticks_to_ms(track_time, &tempo_map);
                 note_changes.insert(ms, active_notes.clone());
             }

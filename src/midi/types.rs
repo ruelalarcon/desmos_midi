@@ -1,5 +1,6 @@
 pub type Timestamp = u64;
 pub type MidiNote = u8;
+pub type Velocity = u8;
 pub type RelativeNote = i32;
 
 #[derive(Debug, Clone)]
@@ -26,7 +27,7 @@ impl TempoMap {
 #[derive(Debug)]
 pub struct NoteEvent {
     pub timestamp: Timestamp,
-    pub notes: Vec<MidiNote>,
+    pub notes: Vec<(MidiNote, Velocity)>,
 }
 
 #[derive(Debug)]
@@ -49,23 +50,24 @@ impl ProcessedSong {
 
         for i in 0..self.note_changes.len() {
             let event = &self.note_changes[i];
-            let relative_notes: Vec<RelativeNote> = event.notes
+            let note_array: Vec<String> = event.notes
                 .iter()
-                .map(|&n| midi_note_to_relative(n))
+                .flat_map(|&(note, velocity)| {
+                    vec![
+                        midi_note_to_relative(note).to_string(),
+                        velocity.to_string()
+                    ]
+                })
                 .collect();
 
             let array_str = format!("\\left[{}\\right]",
-                relative_notes.iter()
-                    .map(|n| n.to_string())
-                    .collect::<Vec<String>>()
-                    .join(","));
+                note_array.join(","));
 
             // Get the end time for this note array (start time of next array)
             let end_time = if i < self.note_changes.len() - 1 {
                 self.note_changes[i + 1].timestamp as f64 / 1000.0
             } else {
                 // For the last note, use its own timestamp plus a small duration
-                // This ensures the last note plays for at least some time
                 (event.timestamp as f64 / 1000.0) + 0.001
             };
 
