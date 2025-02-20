@@ -2,6 +2,7 @@ pub type Timestamp = u64;
 pub type MidiNote = u8;
 pub type Velocity = u8;
 pub type RelativeNote = i32;
+pub type SoundFont = Vec<f32>;
 
 const MAX_FORMULA_LENGTH: usize = 20000;
 
@@ -26,21 +27,50 @@ impl TempoMap {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct Channel {
+    pub id: u8,
+    pub instrument: u8,
+    pub is_drum: bool,
+}
+
 #[derive(Debug)]
 pub struct NoteEvent {
     pub timestamp: Timestamp,
-    pub notes: Vec<(MidiNote, Velocity)>,
+    pub notes: Vec<(MidiNote, Velocity, usize)>, // Note, Velocity, SoundFont Index
+}
+
+#[derive(Debug)]
+pub struct SoundFontMap {
+    pub fonts: Vec<SoundFont>,
+    pub max_size: usize,
+}
+
+impl SoundFontMap {
+    pub fn new(fonts: Vec<SoundFont>) -> Self {
+        let max_size = fonts.iter().map(|f| f.len()).max().unwrap_or(0);
+        // Pad all fonts to max_size
+        let fonts: Vec<SoundFont> = fonts.into_iter()
+            .map(|mut f| {
+                f.resize(max_size, 0.0);
+                f
+            })
+            .collect();
+        Self { fonts, max_size }
+    }
 }
 
 #[derive(Debug)]
 pub struct ProcessedSong {
     pub note_changes: Vec<NoteEvent>,
+    pub channels: Vec<Channel>,
+    pub soundfonts: SoundFontMap,
 }
 
 impl ProcessedSong {
     pub fn to_piecewise_function(&self) -> String {
         if self.note_changes.is_empty() {
-            return "A=\\left\\{t<0:\\left[\\right]\\right\\}".to_string();
+            return "A=\\left\\{t<0:\\left[\\right]\\right\\}\nB=\\left[\\right]\nC=0".to_string();
         }
 
         let mut formulas = Vec::new();
@@ -53,10 +83,11 @@ impl ProcessedSong {
         let format_note_array = |event: &NoteEvent| -> String {
             let note_array: Vec<String> = event.notes
                 .iter()
-                .flat_map(|&(note, velocity)| {
+                .flat_map(|&(note, velocity, soundfont_idx)| {
                     vec![
                         midi_note_to_relative(note).to_string(),
-                        velocity.to_string()
+                        velocity.to_string(),
+                        soundfont_idx.to_string()
                     ]
                 })
                 .collect();
@@ -132,6 +163,16 @@ impl ProcessedSong {
             // If there's only one section, rename it to A
             formulas[0] = formulas[0].replace("A_{1}", "A");
         }
+
+        // Add soundfont array (B) and max size (C)
+        let soundfont_values: Vec<String> = self.soundfonts.fonts.iter()
+            .flat_map(|font| font.iter().map(|v| v.to_string()))
+            .collect();
+        let soundfont_formula = format!("B=\\left[{}\\right]", soundfont_values.join(","));
+        let max_size_formula = format!("C={}", self.soundfonts.max_size);
+
+        formulas.push(soundfont_formula);
+        formulas.push(max_size_formula);
 
         formulas.join("\n")
     }

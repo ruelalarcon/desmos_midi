@@ -17,6 +17,27 @@ struct Args {
     /// Copy output to clipboard instead of console
     #[arg(short, long)]
     copy: bool,
+
+    /// Show MIDI channel information and exit
+    #[arg(short, long)]
+    info: bool,
+
+    /// Soundfont files to use (in order of MIDI channels)
+    #[arg(short, long = "soundfonts", value_delimiter = ' ', num_args = 1.., value_name = "FILE")]
+    soundfonts: Vec<String>,
+}
+
+fn print_channel_info(song: &midi::ProcessedSong) {
+    println!("MIDI Channel Information:");
+    println!("------------------------");
+    for channel in &song.channels {
+        println!(
+            "Channel {}: {} {}",
+            channel.id + 1, // MIDI channels are 1-based in display
+            if channel.is_drum { "[DRUMS] " } else { "" },
+            midi::get_instrument_name(channel.instrument, channel.is_drum)
+        );
+    }
 }
 
 fn main() {
@@ -27,21 +48,40 @@ fn main() {
         process::exit(1);
     }
 
-    match midi::process_midi(&args.midi_file) {
-        Ok(formula) => {
-            if args.copy {
-                // Copy to clipboard
-                if let Err(e) = ClipboardContext::new()
-                    .and_then(|mut ctx| ctx.set_contents(formula)) {
-                    eprintln!("Failed to copy to clipboard: {}", e);
-                    process::exit(1);
-                }
-                println!("Copied to clipboard!");
+    // Process MIDI file
+    let result = if args.info {
+        midi::process_midi_info(&args.midi_file)
+    } else {
+        let soundfonts = if args.soundfonts.is_empty() {
+            // If no soundfonts specified, use default.txt for all channels
+            vec!["default.txt".to_string()]
+        } else {
+            args.soundfonts
+        };
+        midi::process_midi(&args.midi_file, soundfonts)
+    };
+
+    match result {
+        Ok(song) => {
+            if args.info {
+                print_channel_info(&song);
             } else {
-                // Output to console
-                if let Err(e) = io::stdout().write_all(formula.as_bytes()) {
-                    eprintln!("Failed to write to console: {}", e);
-                    process::exit(1);
+                let formula = song.to_piecewise_function();
+                if args.copy {
+                    // Copy to clipboard
+                    if let Err(e) = ClipboardContext::new()
+                        .and_then(|mut ctx| ctx.set_contents(formula))
+                    {
+                        eprintln!("Failed to copy to clipboard: {}", e);
+                        process::exit(1);
+                    }
+                    println!("Copied to clipboard!");
+                } else {
+                    // Output to console
+                    if let Err(e) = io::stdout().write_all(formula.as_bytes()) {
+                        eprintln!("Failed to write to console: {}", e);
+                        process::exit(1);
+                    }
                 }
             }
         }
