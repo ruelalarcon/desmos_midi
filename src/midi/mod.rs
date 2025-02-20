@@ -5,14 +5,50 @@ mod soundfonts;
 
 use std::error::Error;
 use std::fs;
-pub use types::ProcessedSong;
+pub use types::{ProcessedSong, Channel};
 pub use soundfonts::{parse_soundfont_file, get_instrument_name};
 
+/// Parses a MIDI file and returns channel information.
+///
+/// This is a lightweight parse that only extracts channel and instrument information,
+/// without processing note events.
+///
+/// # Arguments
+/// * `midi_path` - Path to the MIDI file
+///
+/// # Returns
+/// * `ProcessedSong` - Song information with only channel data (no notes)
+///
+/// # Errors
+/// * If the file cannot be read
+/// * If the MIDI file is invalid
 pub fn process_midi_info(midi_path: &str) -> Result<ProcessedSong, Box<dyn Error>> {
     let midi_data = fs::read(midi_path)?;
     parser::parse_midi(&midi_data, true)
 }
 
+/// Processes a MIDI file with soundfont information.
+///
+/// This function:
+/// 1. Reads the MIDI file
+/// 2. Extracts channel information
+/// 3. Validates the number of soundfonts matches channels
+/// 4. Maps channels to soundfonts
+/// 5. Processes note events with soundfont assignments
+///
+/// # Arguments
+/// * `midi_path` - Path to the MIDI file
+/// * `soundfont_files` - Vector of soundfont filenames to use
+///                     If only one is provided, it's used for all channels
+///
+/// # Returns
+/// * `ProcessedSong` - Fully processed song with notes and soundfonts
+///
+/// # Errors
+/// * If the file cannot be read
+/// * If the MIDI file is invalid
+/// * If the number of soundfonts doesn't match the number of channels
+/// * If any soundfont file cannot be read or is invalid
 pub fn process_midi(midi_path: &str, mut soundfont_files: Vec<String>) -> Result<ProcessedSong, Box<dyn Error>> {
     let midi_data = fs::read(midi_path)?;
 

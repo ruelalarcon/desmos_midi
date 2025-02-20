@@ -2,6 +2,18 @@ use std::error::Error;
 use std::fs;
 use std::path::Path;
 
+/// Parses a soundfont file from the soundfonts directory.
+/// A soundfont file contains comma-separated floating point values representing harmonic weights.
+///
+/// # Arguments
+/// * `filename` - Name of the file in the soundfonts directory
+///
+/// # Returns
+/// * `Vec<f32>` - Vector of harmonic weights
+///
+/// # Errors
+/// * If the file cannot be read
+/// * If the file contains invalid floating point numbers
 pub fn parse_soundfont_file(filename: &str) -> Result<Vec<f32>, Box<dyn Error>> {
     let path = Path::new("soundfonts").join(filename);
     let content = fs::read_to_string(path)?;
@@ -13,6 +25,14 @@ pub fn parse_soundfont_file(filename: &str) -> Result<Vec<f32>, Box<dyn Error>> 
     Ok(values?)
 }
 
+/// Returns the General MIDI instrument name for a given program number.
+///
+/// # Arguments
+/// * `program` - MIDI program number (0-127)
+/// * `is_drum` - Whether this is a drum channel (channel 10)
+///
+/// # Returns
+/// * `&str` - Name of the instrument
 pub fn get_instrument_name(program: u8, is_drum: bool) -> &'static str {
     if is_drum {
         "Drum Kit"
@@ -149,4 +169,4 @@ pub fn get_instrument_name(program: u8, is_drum: bool) -> &'static str {
             _ => "Unknown Instrument",
         }
     }
-} 
+}

@@ -6,6 +6,18 @@ use super::timing::ticks_to_ms;
 
 const DRUM_CHANNEL: u8 = 9; // MIDI channel 10 (0-based)
 
+/// Parses a MIDI file and extracts note events and channel information.
+///
+/// # Arguments
+/// * `midi_data` - Raw MIDI file data
+/// * `info_only` - If true, only parse channel information and return empty note events
+///
+/// # Returns
+/// * `ProcessedSong` - Parsed MIDI data including notes, channels, and a dummy soundfont
+///
+/// # Errors
+/// * If the MIDI file is invalid
+/// * If the timing format is unsupported
 pub fn parse_midi(midi_data: &[u8], info_only: bool) -> Result<ProcessedSong, Box<dyn Error>> {
     let smf = Smf::parse(midi_data)?;
 
@@ -131,6 +143,22 @@ pub fn parse_midi(midi_data: &[u8], info_only: bool) -> Result<ProcessedSong, Bo
     })
 }
 
+/// Parses a MIDI file with soundfont information.
+///
+/// This function first parses the MIDI file normally, then updates the note events
+/// to use the provided soundfonts based on the channel mapping.
+///
+/// # Arguments
+/// * `midi_data` - Raw MIDI file data
+/// * `soundfonts` - Vector of soundfonts to use
+/// * `channel_to_index` - Mapping from channel numbers to soundfont indices
+///
+/// # Returns
+/// * `ProcessedSong` - Parsed MIDI data with soundfont information
+///
+/// # Errors
+/// * If the MIDI file is invalid
+/// * If the timing format is unsupported
 pub fn parse_midi_with_soundfonts(
     midi_data: &[u8],
     soundfonts: Vec<Vec<f32>>,
