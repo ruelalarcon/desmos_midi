@@ -20,16 +20,6 @@ pub fn process_midi(midi_path: &str, mut soundfont_files: Vec<String>) -> Result
     let info_song = parser::parse_midi(&midi_data, true)?;
     let channel_count = info_song.channels.len();
 
-    // Print debug info
-    println!("Channels in order:");
-    for ch in &info_song.channels {
-        println!("Channel {}", ch.id + 1);
-    }
-    println!("Soundfonts in order:");
-    for sf in &soundfont_files {
-        println!("Soundfont: {}", sf);
-    }
-
     // Validate soundfont count matches channel count
     if soundfont_files.len() == 1 {
         // If only one soundfont provided, duplicate it for all channels
@@ -49,7 +39,6 @@ pub fn process_midi(midi_path: &str, mut soundfont_files: Vec<String>) -> Result
     // Map channels to soundfonts in the order they appear in the MIDI file
     for (idx, channel) in info_song.channels.iter().enumerate() {
         channel_to_index[channel.id as usize] = idx;
-        println!("Mapping channel {} to soundfont {}", channel.id + 1, soundfont_files[idx]);
     }
 
     // Load all soundfonts in order they were provided

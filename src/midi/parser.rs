@@ -142,7 +142,6 @@ pub fn parse_midi_with_soundfonts(
     for event in &mut song.note_changes {
         for (_, _, soundfont_idx) in &mut event.notes {
             *soundfont_idx = channel_to_index[*soundfont_idx];
-            println!("Note using channel {} mapped to soundfont {}", *soundfont_idx, channel_to_index[*soundfont_idx]); // Debug
         }
     }
 
