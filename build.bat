@@ -1,4 +1,10 @@
 @echo off
+
+if not defined CARGO_HOME (
+    set CARGO_HOME=%USERPROFILE%\.cargo
+)
+set PATH=%CARGO_HOME%\bin;%PATH%
+
 echo Building in release mode...
 cargo build --release
 
