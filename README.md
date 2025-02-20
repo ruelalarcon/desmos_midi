@@ -93,6 +93,7 @@ Now enable audio in Desmos through the button in the top left:
    - Uses the `midly` crate to parse MIDI files
    - Extracts note events (Note On/Off) and timing information
    - Handles tempo changes to ensure accurate timing
+   - Preserves note velocities (0-127) for dynamic volume control
 
 2. **Timing Conversion**:
    - Converts MIDI ticks to milliseconds using the formula:
@@ -105,17 +106,21 @@ Now enable audio in Desmos through the button in the top left:
      - `ticks_per_quarter`: MIDI file's time division (ticks per quarter note)
 
 3. **Note Processing**:
-   - Tracks active notes at each timestamp
+   - Tracks active notes and their velocities at each timestamp
    - Converts MIDI note numbers to relative positions from Bb (MIDI note 58)
+   - Each note is paired with its velocity value in the output
    - Generates a Desmos piecewise function in the format:
      ```
-     A=\left\{t<1:\left[0,4,7\right],t<2:\left[2,5,9\right],...\right\}
+     A=\left\{t<1:\left[0,100,4,80,7,90\right],t<2:\left[2,85,5,95,9,75\right],...\right\}
      ```
-   - Where each number represents semitones relative to Bb (0)
+   - Where:
+     - Even-indexed numbers represent semitones relative to Bb (0)
+     - Odd-indexed numbers represent the velocity (0-127) of the previous note
+     - This allows for dynamic volume control in Desmos using the velocity values
 
 4. **Section Processing**:
    - If a MIDI file is too long for Desmos to parse, the program will automatically split it into sections.
-   - The sections are named `A_1`, `A_2`, etc.
+   - The sections are named `A_{1}`, `A_{2}`, etc.
    - The standard `A` array is now a piecewise function that chooses the correct section based on the value of `t`.
 
 ## Dependencies
