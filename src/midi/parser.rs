@@ -108,26 +108,8 @@ pub fn parse_midi(midi_data: &[u8], info_only: bool) -> Result<ProcessedSong, Bo
     let mut active_notes: HashMap<(MidiNote, u8), (Velocity, Timestamp)> = HashMap::new(); // (Note, Channel) -> (Velocity, Start Time)
     let mut note_changes: HashMap<Timestamp, Vec<(MidiNote, Velocity, usize, Timestamp)>> = HashMap::new();
 
-    // Debug: Print the last 10 MIDI events
-    println!("\nLast 10 MIDI events:");
-    for (time, ch, msg) in all_events.iter().rev().take(10).rev() {
-        let ms = ticks_to_ms(*time, &tempo_map);
-        match msg {
-            midly::MidiMessage::NoteOn { key, vel } => {
-                println!("Time: {:.3}s, Ch: {}, Note On: {}, Vel: {}",
-                    ms as f64 / 1000.0, ch, key.as_int(), vel.as_int());
-            }
-            midly::MidiMessage::NoteOff { key, .. } => {
-                println!("Time: {:.3}s, Ch: {}, Note Off: {}",
-                    ms as f64 / 1000.0, ch, key.as_int());
-            }
-            _ => {}
-        }
-    }
-
     // Find the last MIDI event time for proper song duration
     let last_event_time = all_events.last().map(|(time, _, _)| ticks_to_ms(*time, &tempo_map)).unwrap_or(0);
-    println!("\nLast event time: {:.3}s", last_event_time as f64 / 1000.0);
 
     for (track_time, channel, message) in all_events {
         let current_time = ticks_to_ms(track_time, &tempo_map);
@@ -169,17 +151,6 @@ pub fn parse_midi(midi_data: &[u8], info_only: bool) -> Result<ProcessedSong, Bo
         .map(|(timestamp, notes)| NoteEvent { timestamp, notes })
         .collect();
     events.sort_by_key(|event| event.timestamp);
-
-    // Debug: Print the last 10 note events
-    println!("\nLast 10 note events:");
-    for event in events.iter().rev().take(10).rev() {
-        println!("Time: {:.3}s, Notes: {:?}",
-            event.timestamp as f64 / 1000.0,
-            event.notes.iter().map(|(note, vel, ch, end)|
-                format!("(Note:{}, Vel:{}, Ch:{}, End:{:.3}s)",
-                    note, vel, ch, *end as f64 / 1000.0))
-            .collect::<Vec<_>>());
-    }
 
     Ok(ProcessedSong {
         note_changes: events,
