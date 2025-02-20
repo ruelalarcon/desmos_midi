@@ -73,7 +73,7 @@ impl ProcessedSong {
             };
 
             let array_str = format_note_array(event);
-            let piece = format!("t<{}:{}", end_time, array_str);
+            let piece = format!("t<{:0.3}:{}", end_time, array_str);
 
             // Check if adding this piece would exceed the limit
             if current_length + piece.len() > MAX_FORMULA_LENGTH && !current_section.is_empty() {
@@ -121,7 +121,7 @@ impl ProcessedSong {
                     .and_then(|s| s.split(':').next())
                 {
                     if let Ok(end_time) = last_time_str.parse::<f64>() {
-                        main_pieces.push(format!("t<{}:{}", end_time, section_names[i]));
+                        main_pieces.push(format!("t<{:0.3}:{}", end_time, section_names[i]));
                     }
                 }
             }
