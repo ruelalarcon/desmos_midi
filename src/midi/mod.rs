@@ -5,7 +5,7 @@ mod soundfonts;
 
 use std::error::Error;
 use std::fs;
-pub use types::{ProcessedSong, Channel};
+pub use types::ProcessedSong;
 pub use soundfonts::{parse_soundfont_file, get_instrument_name};
 
 pub fn process_midi_info(midi_path: &str) -> Result<ProcessedSong, Box<dyn Error>> {
