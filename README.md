@@ -51,7 +51,7 @@ To clean build artifacts at any time, you can use:
 
 ## Usage
 
-Navigate to [this Desmos graph](https://www.desmos.com/calculator/njxuydvpif).
+Navigate to [this Desmos graph](https://www.desmos.com/calculator/flky5smefa).
 
 Once you have a MIDI file you wish to use, run the following command:
 
@@ -84,6 +84,7 @@ Now enable audio in Desmos through the button in the top left:
 - To play the song, hit the arrow button to the left of the `t -> 0` formula.
 - To end the song, hit the arrow button to the left of the `t -> ∞` formula.
 - You may also set the value of `t` manually to seek to a specific point in the song.
+- Open the "Settings" folder to adjust the visualization amplitude and angular velocity, as well as transposition of the notes.
 
 ## Technical Details
 
