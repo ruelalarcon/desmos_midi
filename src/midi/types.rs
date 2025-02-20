@@ -46,8 +46,9 @@ pub struct Channel {
 #[derive(Debug)]
 pub struct NoteEvent {
     pub timestamp: Timestamp,
-    /// Tuple of (note, velocity, soundfont_index)
-    pub notes: Vec<(MidiNote, Velocity, usize)>,
+    /// Tuple of (note, velocity, soundfont_index, end_time)
+    /// end_time is when this specific note should stop playing (in milliseconds)
+    pub notes: Vec<(MidiNote, Velocity, usize, Timestamp)>,
 }
 
 // Soundfont handling
@@ -108,17 +109,42 @@ impl ProcessedSong {
         let mut section_count = 0;
         let mut section_names = Vec::new();
 
-        // Process events and split into sections
-        for i in 0..self.note_changes.len() {
-            let event = &self.note_changes[i];
-            let end_time = if i < self.note_changes.len() - 1 {
-                self.note_changes[i + 1].timestamp as f64 / 1000.0
-            } else {
-                (event.timestamp as f64 / 1000.0) + 0.001
-            };
+        // Find all unique timestamps where notes start or end
+        let mut timestamps: Vec<f64> = self.note_changes.iter()
+            .flat_map(|event| {
+                let start = event.timestamp as f64 / 1000.0;
+                let ends = event.notes.iter().map(|(_, _, _, end)| *end as f64 / 1000.0);
+                std::iter::once(start).chain(ends)
+            })
+            .collect();
+        timestamps.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        timestamps.dedup();
 
-            let array_str = format_note_array(event);
-            let piece = format!("t<{:0.3}:{}", end_time, array_str);
+        // For each timestamp, collect all active notes
+        for window in timestamps.windows(2) {
+            let current_time = window[0];
+            let next_time = window[1];
+
+            // Find all notes that are active at this time
+            let mut active_notes = Vec::new();
+            for event in &self.note_changes {
+                let event_time = event.timestamp as f64 / 1000.0;
+                if event_time <= current_time {
+                    // Add notes from this event that are still playing
+                    for &(note, vel, sf, end_time) in &event.notes {
+                        if (end_time as f64 / 1000.0) > current_time {
+                            active_notes.push((note, vel, sf));
+                        }
+                    }
+                }
+            }
+
+            // Sort notes for consistent output
+            active_notes.sort_unstable_by_key(|(note, _, _)| *note);
+
+            // Format the array of active notes
+            let array_str = format_note_array_simple(&active_notes);
+            let piece = format!("t<{:0.3}:{}", next_time, array_str);
 
             // Check if adding this piece would exceed the limit
             if current_length + piece.len() > MAX_FORMULA_LENGTH && !current_section.is_empty() {
@@ -135,8 +161,14 @@ impl ProcessedSong {
                 current_length = 0;
             }
 
-            current_section.push(piece.clone());
-            current_length += piece.len();
+            let piece_len = piece.len();
+            current_section.push(piece);
+            current_length += piece_len;
+        }
+
+        // Add an empty array at the very end
+        if let Some(&last_time) = timestamps.last() {
+            current_section.push(format!("t<{}:\\left[\\right]", last_time + 0.1));
         }
 
         // Add the last section
@@ -167,20 +199,15 @@ impl ProcessedSong {
     }
 }
 
-/// Formats a NoteEvent into a Desmos array string.
-///
-/// Each note in the event is represented by three values:
-/// 1. Note value (relative to A4/440Hz)
-/// 2. Velocity (0-127)
-/// 3. Soundfont index
+/// Formats a list of active notes into a Desmos array string.
 ///
 /// # Arguments
-/// * `event` - The NoteEvent to format
+/// * `notes` - List of (note, velocity, soundfont_index) tuples
 ///
 /// # Returns
 /// * `String` - Desmos array representation
-fn format_note_array(event: &NoteEvent) -> String {
-    let note_array: Vec<String> = event.notes
+fn format_note_array_simple(notes: &[(MidiNote, Velocity, usize)]) -> String {
+    let note_array: Vec<String> = notes
         .iter()
         .flat_map(|&(note, velocity, soundfont_idx)| {
             vec![

@@ -31,6 +31,7 @@ pub fn parse_midi(midi_data: &[u8], info_only: bool) -> Result<ProcessedSong, Bo
     let mut all_events = Vec::new();
     let mut tempo_changes = Vec::new();
     let mut channels = HashMap::new();
+    let mut channel_instruments = HashMap::new();
 
     // First pass: collect all events and tempo changes with absolute timestamps
     for track in smf.tracks.iter() {
@@ -45,14 +46,23 @@ pub fn parse_midi(midi_data: &[u8], info_only: bool) -> Result<ProcessedSong, Bo
                     });
                 }
                 TrackEventKind::Midi { channel, message } => {
-                    if let midly::MidiMessage::ProgramChange { program } = message {
-                        channels.insert(channel.as_int(), Channel {
-                            id: channel.as_int(),
-                            instrument: program.as_int(),
-                            is_drum: channel.as_int() == DRUM_CHANNEL,
+                    let ch = channel.as_int();
+                    // Record any channel that has MIDI messages
+                    if !channels.contains_key(&ch) {
+                        channels.insert(ch, Channel {
+                            id: ch,
+                            instrument: *channel_instruments.get(&ch).unwrap_or(&0), // Default to piano
+                            is_drum: ch == DRUM_CHANNEL,
                         });
                     }
-                    all_events.push((track_time, channel.as_int(), message));
+                    // Update instrument if we see a program change
+                    if let midly::MidiMessage::ProgramChange { program } = message {
+                        channel_instruments.insert(ch, program.as_int());
+                        if let Some(channel) = channels.get_mut(&ch) {
+                            channel.instrument = program.as_int();
+                        }
+                    }
+                    all_events.push((track_time, ch, message));
                 }
                 _ => {}
             }
@@ -95,39 +105,63 @@ pub fn parse_midi(midi_data: &[u8], info_only: bool) -> Result<ProcessedSong, Bo
     all_events.sort_by_key(|(time, _, _)| *time);
 
     // Process the merged events
-    let mut active_notes: Vec<(MidiNote, Velocity, u8)> = Vec::new(); // Note, Velocity, Channel
-    let mut note_changes: HashMap<Timestamp, Vec<(MidiNote, Velocity, usize)>> = HashMap::new();
+    let mut active_notes: HashMap<(MidiNote, u8), (Velocity, Timestamp)> = HashMap::new(); // (Note, Channel) -> (Velocity, Start Time)
+    let mut note_changes: HashMap<Timestamp, Vec<(MidiNote, Velocity, usize, Timestamp)>> = HashMap::new();
 
-    for (track_time, channel, message) in all_events {
-        match message {
+    // Debug: Print the last 10 MIDI events
+    println!("\nLast 10 MIDI events:");
+    for (time, ch, msg) in all_events.iter().rev().take(10).rev() {
+        let ms = ticks_to_ms(*time, &tempo_map);
+        match msg {
             midly::MidiMessage::NoteOn { key, vel } => {
-                if vel.as_int() > 0 {
-                    // Remove any existing instance of this note on this channel
-                    active_notes.retain(|(n, _, ch)| *n != key.as_int() || *ch != channel);
-                    // Add the new note with velocity
-                    active_notes.push((key.as_int(), vel.as_int(), channel));
-                    active_notes.sort_unstable_by_key(|(n, _, _)| *n);
-                } else {
-                    // Treat as note off
-                    active_notes.retain(|(n, _, ch)| *n != key.as_int() || *ch != channel);
-                }
-                let ms = ticks_to_ms(track_time, &tempo_map);
-                // Store channel ID directly, will be mapped to soundfont index later
-                let notes: Vec<_> = active_notes.iter()
-                    .map(|&(note, vel, ch)| (note, vel, ch as usize))
-                    .collect();
-                note_changes.insert(ms, notes);
+                println!("Time: {:.3}s, Ch: {}, Note On: {}, Vel: {}",
+                    ms as f64 / 1000.0, ch, key.as_int(), vel.as_int());
             }
             midly::MidiMessage::NoteOff { key, .. } => {
-                active_notes.retain(|(n, _, ch)| *n != key.as_int() || *ch != channel);
-                let ms = ticks_to_ms(track_time, &tempo_map);
-                let notes: Vec<_> = active_notes.iter()
-                    .map(|&(note, vel, ch)| (note, vel, ch as usize))
-                    .collect();
-                note_changes.insert(ms, notes);
+                println!("Time: {:.3}s, Ch: {}, Note Off: {}",
+                    ms as f64 / 1000.0, ch, key.as_int());
             }
             _ => {}
         }
+    }
+
+    // Find the last MIDI event time for proper song duration
+    let last_event_time = all_events.last().map(|(time, _, _)| ticks_to_ms(*time, &tempo_map)).unwrap_or(0);
+    println!("\nLast event time: {:.3}s", last_event_time as f64 / 1000.0);
+
+    for (track_time, channel, message) in all_events {
+        let current_time = ticks_to_ms(track_time, &tempo_map);
+
+        match message {
+            midly::MidiMessage::NoteOn { key, vel } => {
+                let note_key = (key.as_int(), channel);
+                if vel.as_int() > 0 {
+                    // Note on - record start time
+                    active_notes.insert(note_key, (vel.as_int(), current_time));
+                } else {
+                    // Note off - if note was active, add it to changes with its duration
+                    if let Some((velocity, start_time)) = active_notes.remove(&note_key) {
+                        let changes = note_changes.entry(start_time).or_default();
+                        changes.push((key.as_int(), velocity, channel as usize, current_time));
+                    }
+                }
+            }
+            midly::MidiMessage::NoteOff { key, .. } => {
+                // Explicit note off - if note was active, add it to changes with its duration
+                let note_key = (key.as_int(), channel);
+                if let Some((velocity, start_time)) = active_notes.remove(&note_key) {
+                    let changes = note_changes.entry(start_time).or_default();
+                    changes.push((key.as_int(), velocity, channel as usize, current_time));
+                }
+            }
+            _ => {}
+        }
+    }
+
+    // Handle any still-active notes by ending them at the last event time
+    for ((note, channel), (velocity, start_time)) in active_notes {
+        let changes = note_changes.entry(start_time).or_default();
+        changes.push((note, velocity, channel as usize, last_event_time));
     }
 
     let mut events: Vec<NoteEvent> = note_changes
@@ -135,6 +169,17 @@ pub fn parse_midi(midi_data: &[u8], info_only: bool) -> Result<ProcessedSong, Bo
         .map(|(timestamp, notes)| NoteEvent { timestamp, notes })
         .collect();
     events.sort_by_key(|event| event.timestamp);
+
+    // Debug: Print the last 10 note events
+    println!("\nLast 10 note events:");
+    for event in events.iter().rev().take(10).rev() {
+        println!("Time: {:.3}s, Notes: {:?}",
+            event.timestamp as f64 / 1000.0,
+            event.notes.iter().map(|(note, vel, ch, end)|
+                format!("(Note:{}, Vel:{}, Ch:{}, End:{:.3}s)",
+                    note, vel, ch, *end as f64 / 1000.0))
+            .collect::<Vec<_>>());
+    }
 
     Ok(ProcessedSong {
         note_changes: events,
@@ -162,16 +207,25 @@ pub fn parse_midi(midi_data: &[u8], info_only: bool) -> Result<ProcessedSong, Bo
 pub fn parse_midi_with_soundfonts(
     midi_data: &[u8],
     soundfonts: Vec<Vec<f32>>,
-    channel_to_index: Vec<usize>
+    channel_to_index: Vec<Option<usize>>
 ) -> Result<ProcessedSong, Box<dyn Error>> {
     let mut song = parse_midi(midi_data, false)?;
 
     // Update the soundfont indices in note events using the channel mapping
+    // and filter out notes for channels without soundfonts
     for event in &mut song.note_changes {
-        for (_, _, soundfont_idx) in &mut event.notes {
-            *soundfont_idx = channel_to_index[*soundfont_idx];
-        }
+        event.notes.retain_mut(|(_, _, soundfont_idx, _)| {
+            if let Some(new_idx) = channel_to_index[*soundfont_idx] {
+                *soundfont_idx = new_idx;
+                true
+            } else {
+                false
+            }
+        });
     }
+
+    // Remove any events that have no notes after filtering
+    song.note_changes.retain(|event| !event.notes.is_empty());
 
     song.soundfonts = SoundFontMap::new(soundfonts);
     Ok(song)

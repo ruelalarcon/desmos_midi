@@ -9,12 +9,15 @@ use std::path::Path;
 /// * `filename` - Name of the file in the soundfonts directory
 ///
 /// # Returns
-/// * `Vec<f32>` - Vector of harmonic weights
+/// * `Option<Vec<f32>>` - Vector of harmonic weights or None if the filename is "-"
 ///
 /// # Errors
 /// * If the file cannot be read
 /// * If the file contains invalid floating point numbers
-pub fn parse_soundfont_file(filename: &str) -> Result<Vec<f32>, Box<dyn Error>> {
+pub fn parse_soundfont_file(filename: &str) -> Result<Option<Vec<f32>>, Box<dyn Error>> {
+    if filename == "-" {
+        return Ok(None);
+    }
     let path = Path::new("soundfonts").join(filename);
     let content = fs::read_to_string(path)?;
     let values: Result<Vec<f32>, _> = content
@@ -22,7 +25,7 @@ pub fn parse_soundfont_file(filename: &str) -> Result<Vec<f32>, Box<dyn Error>> 
         .split(',')
         .map(|s| s.trim().parse())
         .collect();
-    Ok(values?)
+    Ok(Some(values?))
 }
 
 /// Returns the General MIDI instrument name for a given program number.

@@ -5,7 +5,7 @@ mod soundfonts;
 
 use std::error::Error;
 use std::fs;
-pub use types::{ProcessedSong, Channel};
+pub use types::ProcessedSong;
 pub use soundfonts::{parse_soundfont_file, get_instrument_name};
 
 /// Parses a MIDI file and returns channel information.
@@ -70,19 +70,17 @@ pub fn process_midi(midi_path: &str, mut soundfont_files: Vec<String>) -> Result
     }
 
     // Create a mapping of channel ID to soundfont index
-    let mut channel_to_index = vec![0; 16]; // MIDI has 16 possible channels
+    let mut channel_to_index = vec![None; 16]; // MIDI has 16 possible channels
+    let mut active_soundfonts = Vec::with_capacity(channel_count);
 
-    // Map channels to soundfonts in the order they appear in the MIDI file
-    for (idx, channel) in info_song.channels.iter().enumerate() {
-        channel_to_index[channel.id as usize] = idx;
-    }
-
-    // Load all soundfonts in order they were provided
-    let mut soundfonts = Vec::with_capacity(channel_count);
-    for i in 0..channel_count {
-        soundfonts.push(parse_soundfont_file(&soundfont_files[i])?);
+    // Load all soundfonts and create channel mapping
+    for (_idx, (channel, soundfont_file)) in info_song.channels.iter().zip(soundfont_files.iter()).enumerate() {
+        if let Some(soundfont) = parse_soundfont_file(soundfont_file)? {
+            channel_to_index[channel.id as usize] = Some(active_soundfonts.len());
+            active_soundfonts.push(soundfont);
+        }
     }
 
     // Now parse MIDI with soundfonts and channel mapping
-    parser::parse_midi_with_soundfonts(&midi_data, soundfonts, channel_to_index)
+    parser::parse_midi_with_soundfonts(&midi_data, active_soundfonts, channel_to_index)
 }
