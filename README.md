@@ -51,7 +51,7 @@ To clean build artifacts at any time, you can use:
 
 ## Usage
 
-Navigate to [this Desmos graph](https://www.desmos.com/calculator/flky5smefa).
+Navigate to [this Desmos graph](https://www.desmos.com/calculator/zvwqmxkok3).
 
 Once you have a MIDI file you wish to use, run the following command:
 
@@ -108,7 +108,7 @@ Now enable audio in Desmos through the button in the top left:
 
 3. **Note Processing**:
    - Tracks active notes and their velocities at each timestamp
-   - Converts MIDI note numbers to relative positions from Bb (MIDI note 58)
+   - Converts MIDI note numbers to relative positions from A (MIDI note 69 / 440 Hz)
    - Each note is paired with its velocity value in the output
    - Generates a Desmos piecewise function in the format:
      ```

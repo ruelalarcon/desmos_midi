@@ -138,5 +138,5 @@ impl ProcessedSong {
 }
 
 fn midi_note_to_relative(note: MidiNote) -> RelativeNote {
-    (note as RelativeNote) - 58 // Bb (MIDI note 58) as root note (0)
+    (note as RelativeNote) - 69 // A (MIDI note 69 / 440 Hz) as root note (0)
 }
