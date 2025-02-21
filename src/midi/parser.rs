@@ -1,8 +1,11 @@
-use std::error::Error;
-use std::collections::HashMap;
-use midly::{Smf, TrackEventKind};
-use super::types::{Timestamp, MidiNote, Velocity, NoteEvent, ProcessedSong, TempoMap, TempoChange, Channel, SoundFontMap};
 use super::timing::ticks_to_ms;
+use super::types::{
+    Channel, MidiNote, NoteEvent, ProcessedSong, SoundFontMap, TempoChange, TempoMap, Timestamp,
+    Velocity,
+};
+use midly::{Smf, TrackEventKind};
+use std::collections::HashMap;
+use std::error::Error;
 
 const DRUM_CHANNEL: u8 = 9; // MIDI channel 10 (0-based)
 
@@ -49,11 +52,14 @@ pub fn parse_midi(midi_data: &[u8], info_only: bool) -> Result<ProcessedSong, Bo
                     let ch = channel.as_int();
                     // Record any channel that has MIDI messages
                     if !channels.contains_key(&ch) {
-                        channels.insert(ch, Channel {
-                            id: ch,
-                            instrument: *channel_instruments.get(&ch).unwrap_or(&0), // Default to piano
-                            is_drum: ch == DRUM_CHANNEL,
-                        });
+                        channels.insert(
+                            ch,
+                            Channel {
+                                id: ch,
+                                instrument: *channel_instruments.get(&ch).unwrap_or(&0), // Default to piano
+                                is_drum: ch == DRUM_CHANNEL,
+                            },
+                        );
                     }
                     // Update instrument if we see a program change
                     if let midly::MidiMessage::ProgramChange { program } = message {
@@ -106,10 +112,14 @@ pub fn parse_midi(midi_data: &[u8], info_only: bool) -> Result<ProcessedSong, Bo
 
     // Process the merged events
     let mut active_notes: HashMap<(MidiNote, u8), (Velocity, Timestamp)> = HashMap::new(); // (Note, Channel) -> (Velocity, Start Time)
-    let mut note_changes: HashMap<Timestamp, Vec<(MidiNote, Velocity, usize, Timestamp)>> = HashMap::new();
+    let mut note_changes: HashMap<Timestamp, Vec<(MidiNote, Velocity, usize, Timestamp)>> =
+        HashMap::new();
 
     // Find the last MIDI event time for proper song duration
-    let last_event_time = all_events.last().map(|(time, _, _)| ticks_to_ms(*time, &tempo_map)).unwrap_or(0);
+    let last_event_time = all_events
+        .last()
+        .map(|(time, _, _)| ticks_to_ms(*time, &tempo_map))
+        .unwrap_or(0);
 
     for (track_time, channel, message) in all_events {
         let current_time = ticks_to_ms(track_time, &tempo_map);
@@ -178,7 +188,7 @@ pub fn parse_midi(midi_data: &[u8], info_only: bool) -> Result<ProcessedSong, Bo
 pub fn parse_midi_with_soundfonts(
     midi_data: &[u8],
     soundfonts: Vec<Vec<f32>>,
-    channel_to_index: Vec<Option<usize>>
+    channel_to_index: Vec<Option<usize>>,
 ) -> Result<ProcessedSong, Box<dyn Error>> {
     let mut song = parse_midi(midi_data, false)?;
 

@@ -28,7 +28,9 @@ pub fn ticks_to_ms(ticks: u64, tempo_map: &TempoMap) -> u64 {
     // Find the total time by accumulating through each tempo segment
     while current_tick < ticks {
         // Find the next tempo change or use the target ticks
-        let next_tempo_change = tempo_map.changes.get(last_tempo_idx + 1)
+        let next_tempo_change = tempo_map
+            .changes
+            .get(last_tempo_idx + 1)
             .map(|change| change.tick)
             .unwrap_or(ticks);
 
@@ -37,8 +39,8 @@ pub fn ticks_to_ms(ticks: u64, tempo_map: &TempoMap) -> u64 {
         let current_tempo = tempo_map.changes[last_tempo_idx].tempo;
 
         // Calculate time in microseconds first
-        current_time_us += (tick_delta as u128 * current_tempo as u128) /
-            tempo_map.ticks_per_quarter as u128;
+        current_time_us +=
+            (tick_delta as u128 * current_tempo as u128) / tempo_map.ticks_per_quarter as u128;
 
         if segment_end_tick == next_tempo_change {
             last_tempo_idx += 1;

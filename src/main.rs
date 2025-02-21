@@ -1,8 +1,8 @@
+use clap::Parser;
+use clipboard::{ClipboardContext, ClipboardProvider};
+use std::io::{self, Write};
 use std::path::Path;
 use std::process;
-use std::io::{self, Write};
-use clipboard::{ClipboardContext, ClipboardProvider};
-use clap::Parser;
 
 mod midi;
 
@@ -69,8 +69,8 @@ fn main() {
                 let formula = song.to_piecewise_function();
                 if args.copy {
                     // Copy to clipboard
-                    if let Err(e) = ClipboardContext::new()
-                        .and_then(|mut ctx| ctx.set_contents(formula))
+                    if let Err(e) =
+                        ClipboardContext::new().and_then(|mut ctx| ctx.set_contents(formula))
                     {
                         eprintln!("Failed to copy to clipboard: {}", e);
                         process::exit(1);

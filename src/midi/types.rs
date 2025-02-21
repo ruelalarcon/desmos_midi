@@ -28,7 +28,10 @@ impl TempoMap {
     /// * `ticks_per_quarter` - Number of MIDI ticks per quarter note
     pub fn new(ticks_per_quarter: u32) -> Self {
         Self {
-            changes: vec![TempoChange { tick: 0, tempo: 500000 }], // Default 120 BPM
+            changes: vec![TempoChange {
+                tick: 0,
+                tempo: 500000,
+            }], // Default 120 BPM
             ticks_per_quarter,
         }
     }
@@ -67,7 +70,8 @@ impl SoundFontMap {
     pub fn new(fonts: Vec<SoundFont>) -> Self {
         let max_size = fonts.iter().map(|f| f.len()).max().unwrap_or(0);
         // Pad all fonts to max_size
-        let fonts: Vec<SoundFont> = fonts.into_iter()
+        let fonts: Vec<SoundFont> = fonts
+            .into_iter()
             .map(|mut f| {
                 f.resize(max_size, 0.0);
                 f
@@ -110,10 +114,15 @@ impl ProcessedSong {
         let mut section_names = Vec::new();
 
         // Find all unique timestamps where notes start or end
-        let mut timestamps: Vec<f64> = self.note_changes.iter()
+        let mut timestamps: Vec<f64> = self
+            .note_changes
+            .iter()
             .flat_map(|event| {
                 let start = event.timestamp as f64 / 1000.0;
-                let ends = event.notes.iter().map(|(_, _, _, end)| *end as f64 / 1000.0);
+                let ends = event
+                    .notes
+                    .iter()
+                    .map(|(_, _, _, end)| *end as f64 / 1000.0);
                 std::iter::once(start).chain(ends)
             })
             .collect();
@@ -152,9 +161,11 @@ impl ProcessedSong {
                 let section_name = format!("A_{{{}}}", section_count);
                 section_names.push(section_name.clone());
 
-                let section_formula = format!("{}=\\left\\{{{}\\right\\}}",
+                let section_formula = format!(
+                    "{}=\\left\\{{{}\\right\\}}",
                     section_name,
-                    current_section.join(","));
+                    current_section.join(",")
+                );
                 formulas.push(section_formula);
 
                 current_section.clear();
@@ -177,9 +188,11 @@ impl ProcessedSong {
             let section_name = format!("A_{{{}}}", section_count);
             section_names.push(section_name.clone());
 
-            let section_formula = format!("{}=\\left\\{{{}\\right\\}}",
+            let section_formula = format!(
+                "{}=\\left\\{{{}\\right\\}}",
                 section_name,
-                current_section.join(","));
+                current_section.join(",")
+            );
             formulas.push(section_formula);
         }
 
@@ -213,7 +226,7 @@ fn format_note_array_simple(notes: &[(MidiNote, Velocity, usize)]) -> String {
             vec![
                 midi_note_to_relative(note).to_string(),
                 velocity.to_string(),
-                soundfont_idx.to_string()
+                soundfont_idx.to_string(),
             ]
         })
         .collect();
@@ -253,7 +266,9 @@ fn create_main_formula(formulas: &[String], section_names: &[String]) -> String 
 /// * `formulas` - Vector to append formulas to
 /// * `soundfonts` - SoundFontMap containing the soundfonts
 fn add_soundfont_formulas(formulas: &mut Vec<String>, soundfonts: &SoundFontMap) {
-    let soundfont_values: Vec<String> = soundfonts.fonts.iter()
+    let soundfont_values: Vec<String> = soundfonts
+        .fonts
+        .iter()
         .flat_map(|font| font.iter().map(|v| v.to_string()))
         .collect();
     formulas.push(format!("B=\\left[{}\\right]", soundfont_values.join(",")));

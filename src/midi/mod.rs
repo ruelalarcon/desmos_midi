@@ -1,12 +1,12 @@
-mod types;
 mod parser;
-mod timing;
 mod soundfonts;
+mod timing;
+mod types;
 
+pub use soundfonts::{get_instrument_name, parse_soundfont_file};
 use std::error::Error;
 use std::fs;
 pub use types::ProcessedSong;
-pub use soundfonts::{parse_soundfont_file, get_instrument_name};
 
 /// Parses a MIDI file and returns channel information.
 ///
@@ -49,7 +49,10 @@ pub fn process_midi_info(midi_path: &str) -> Result<ProcessedSong, Box<dyn Error
 /// * If the MIDI file is invalid
 /// * If the number of soundfonts doesn't match the number of channels
 /// * If any soundfont file cannot be read or is invalid
-pub fn process_midi(midi_path: &str, mut soundfont_files: Vec<String>) -> Result<ProcessedSong, Box<dyn Error>> {
+pub fn process_midi(
+    midi_path: &str,
+    mut soundfont_files: Vec<String>,
+) -> Result<ProcessedSong, Box<dyn Error>> {
     let midi_data = fs::read(midi_path)?;
 
     // First parse MIDI to get channel info
@@ -62,11 +65,19 @@ pub fn process_midi(midi_path: &str, mut soundfont_files: Vec<String>) -> Result
         let default_font = soundfont_files[0].clone();
         soundfont_files = vec![default_font; channel_count];
     } else if soundfont_files.len() < channel_count {
-        return Err(format!("Not enough soundfonts provided. Need {} for channels, got {}",
-            channel_count, soundfont_files.len()).into());
+        return Err(format!(
+            "Not enough soundfonts provided. Need {} for channels, got {}",
+            channel_count,
+            soundfont_files.len()
+        )
+        .into());
     } else if soundfont_files.len() > channel_count {
-        return Err(format!("Too many soundfonts provided. Need {} for channels, got {}",
-            channel_count, soundfont_files.len()).into());
+        return Err(format!(
+            "Too many soundfonts provided. Need {} for channels, got {}",
+            channel_count,
+            soundfont_files.len()
+        )
+        .into());
     }
 
     // Create a mapping of channel ID to soundfont index
@@ -74,7 +85,12 @@ pub fn process_midi(midi_path: &str, mut soundfont_files: Vec<String>) -> Result
     let mut active_soundfonts = Vec::with_capacity(channel_count);
 
     // Load all soundfonts and create channel mapping
-    for (_idx, (channel, soundfont_file)) in info_song.channels.iter().zip(soundfont_files.iter()).enumerate() {
+    for (_idx, (channel, soundfont_file)) in info_song
+        .channels
+        .iter()
+        .zip(soundfont_files.iter())
+        .enumerate()
+    {
         if let Some(soundfont) = parse_soundfont_file(soundfont_file)? {
             channel_to_index[channel.id as usize] = Some(active_soundfonts.len());
             active_soundfonts.push(soundfont);
