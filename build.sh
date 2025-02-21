@@ -5,6 +5,6 @@ cargo build --release
 mkdir -p bin
 
 echo "Copying binary to bin directory..."
-cp "target/release/desmos_music" "bin/desmos_music"
+cp "target/release/desmos_midi" "bin/desmos_midi"
 
 echo "Build complete! You can now use './run.sh' to run the program."

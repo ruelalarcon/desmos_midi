@@ -26,8 +26,8 @@ sudo apt install libxcb1-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0
 Clone this repository and navigate to the directory:
 
 ```bash
-git clone https://github.com/ruelalarcon/desmos_music.git
-cd desmos_music
+git clone https://github.com/ruelalarcon/desmos_midi.git
+cd desmos_midi
 ```
 
 Then build the project using the provided script:

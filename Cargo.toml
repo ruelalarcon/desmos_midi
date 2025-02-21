@@ -1,8 +1,8 @@
 [package]
-name = "desmos_music"
+name = "desmos_midi"
 authors = ["Ruel Nathaniel Alarcon"]
 description = "A Rust-based CLI tool for converting MIDI files into formulas for Desmos."
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 
 [dependencies]

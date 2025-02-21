@@ -11,6 +11,6 @@ cargo build --release
 if not exist "bin" mkdir bin
 
 echo Copying binary to bin directory...
-copy "target\release\desmos_music.exe" "bin\desmos_music.exe"
+copy "target\release\desmos_midi.exe" "bin\desmos_midi.exe"
 
 echo Build complete! You can now use './run.bat' to run the program.
