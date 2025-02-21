@@ -53,8 +53,26 @@ fn main() {
         midi::process_midi_info(&args.midi_file)
     } else {
         let soundfonts = if args.soundfonts.is_empty() {
-            // If no soundfonts specified, use default.txt for all channels
-            vec!["default.txt".to_string()]
+            // First get channel info to identify drum channels
+            match midi::process_midi_info(&args.midi_file) {
+                Ok(info) => {
+                    // Create soundfont list with "-" for drum channels and default.txt for others
+                    info.channels
+                        .iter()
+                        .map(|ch| {
+                            if ch.is_drum {
+                                "-".to_string()
+                            } else {
+                                "default.txt".to_string()
+                            }
+                        })
+                        .collect()
+                }
+                Err(e) => {
+                    eprintln!("Error getting channel info: {}", e);
+                    process::exit(1);
+                }
+            }
         } else {
             args.soundfonts
         };
