@@ -1,8 +1,11 @@
 [package]
-name = "desmos_music"
-version = "0.2.0"
+name = "desmos_midi"
+authors = ["Ruel Nathaniel Alarcon"]
+description = "A Rust-based CLI tool for converting MIDI files into formulas for Desmos."
+version = "0.3.0"
 edition = "2021"
 
 [dependencies]
 midly = "0.5"
 clipboard = "0.5"
+clap = { version = "4.5", features = ["derive"] }

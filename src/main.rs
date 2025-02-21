@@ -1,28 +1,111 @@
-use std::env;
+use clap::Parser;
+use clipboard::{ClipboardContext, ClipboardProvider};
+use std::io::{self, Write};
 use std::path::Path;
 use std::process;
 
 mod midi;
 
+/// Convert MIDI files to Desmos formulas
+#[derive(Parser)]
+#[command(author, version, about, long_about = None)]
+struct Args {
+    /// Path to the input MIDI file
+    #[arg(required = true)]
+    midi_file: String,
+
+    /// Copy output to clipboard instead of console
+    #[arg(short, long)]
+    copy: bool,
+
+    /// Show MIDI channel information and exit
+    #[arg(short, long)]
+    info: bool,
+
+    /// Soundfont files to use (in order of MIDI channels)
+    #[arg(short, long = "soundfonts", value_delimiter = ' ', num_args = 1.., value_name = "FILE")]
+    soundfonts: Vec<String>,
+}
+
+fn print_channel_info(song: &midi::ProcessedSong) {
+    println!("MIDI Channel Information:");
+    println!("------------------------");
+    for channel in &song.channels {
+        println!(
+            "Channel {}: {} {}",
+            channel.id + 1, // MIDI channels are 1-based in display
+            if channel.is_drum { "[DRUMS] " } else { "" },
+            midi::get_instrument_name(channel.instrument, channel.is_drum)
+        );
+    }
+}
+
 fn main() {
-    let args: Vec<String> = env::args().collect();
+    let args = Args::parse();
 
-    if args.len() < 2 || args.len() > 3 {
-        eprintln!("Usage: {} <midi_file> [output_file]", args[0]);
-        eprintln!("If output_file is not specified, the formula will be copied to clipboard");
+    if !Path::new(&args.midi_file).exists() {
+        eprintln!("Error: MIDI file {} not found", args.midi_file);
         process::exit(1);
     }
 
-    let midi_path = &args[1];
-    let output_path = args.get(2);
+    // Process MIDI file
+    let result = if args.info {
+        midi::process_midi_info(&args.midi_file)
+    } else {
+        let soundfonts = if args.soundfonts.is_empty() {
+            // First get channel info to identify drum channels
+            match midi::process_midi_info(&args.midi_file) {
+                Ok(info) => {
+                    // Create soundfont list with "-" for drum channels and default.txt for others
+                    info.channels
+                        .iter()
+                        .map(|ch| {
+                            if ch.is_drum {
+                                "-".to_string()
+                            } else {
+                                "default.txt".to_string()
+                            }
+                        })
+                        .collect()
+                }
+                Err(e) => {
+                    eprintln!("Error getting channel info: {}", e);
+                    process::exit(1);
+                }
+            }
+        } else {
+            args.soundfonts
+        };
+        midi::process_midi(&args.midi_file, soundfonts)
+    };
 
-    if !Path::new(midi_path).exists() {
-        eprintln!("Error: MIDI file {} not found", midi_path);
-        process::exit(1);
-    }
-
-    if let Err(e) = midi::process_midi(midi_path, output_path.map(|s| s.as_str())) {
-        eprintln!("Error processing MIDI: {}", e);
-        process::exit(1);
+    match result {
+        Ok(song) => {
+            if args.info {
+                print_channel_info(&song);
+            } else {
+                let formula = song.to_piecewise_function();
+                if args.copy {
+                    // Copy to clipboard
+                    if let Err(e) =
+                        ClipboardContext::new().and_then(|mut ctx| ctx.set_contents(formula))
+                    {
+                        eprintln!("Failed to copy to clipboard: {}", e);
+                        process::exit(1);
+                    }
+                    println!("Copied to clipboard!");
+                } else {
+                    // Output to console
+                    if let Err(e) = io::stdout().write_all(formula.as_bytes()) {
+                        eprintln!("Failed to write to console: {}", e);
+                        process::exit(1);
+                    }
+                }
+            }
+        }
+        Err(e) => {
+            eprintln!("Error processing MIDI: {}", e);
+            process::exit(1);
+        }
     }
 }
