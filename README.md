@@ -95,13 +95,13 @@ By default:
 
 3. Specify custom soundfonts:
 ```bash
-./run.sh song.mid -s piano.txt strings.txt - organ.txt
+./run.sh song.mid -s default.txt sine.txt - default.txt
 ```
 This will use:
-- `piano.txt` for channel 1
-- `strings.txt` for channel 2
+- `default.txt` for channel 1
+- `sine.txt` for channel 2
 - ignore channel 3
-- `organ.txt` for channel 4
+- `default.txt` for channel 4
 
 4. Copy to clipboard instead of console output:
 ```bash
