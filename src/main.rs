@@ -27,6 +27,17 @@ struct Args {
     soundfonts: Vec<String>,
 }
 
+/// Process a soundfont filename to ensure it has a .txt extension
+fn process_soundfont_name(name: &str) -> String {
+    if name == "-" {
+        name.to_string()
+    } else if !name.ends_with(".txt") {
+        format!("{}.txt", name)
+    } else {
+        name.to_string()
+    }
+}
+
 fn print_channel_info(song: &midi::ProcessedSong) {
     println!("MIDI Channel Information:");
     println!("------------------------");
@@ -74,7 +85,8 @@ fn main() {
                 }
             }
         } else {
-            args.soundfonts
+            // Process each soundfont name to ensure .txt extension
+            args.soundfonts.iter().map(|s| process_soundfont_name(s)).collect()
         };
         midi::process_midi(&args.midi_file, soundfonts)
     };

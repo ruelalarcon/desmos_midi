@@ -76,10 +76,11 @@ Once you have a MIDI file you wish to use, run the following command:
 
 ### Soundfonts
 By default:
-- Regular channels use `default.txt` soundfont
+- Regular channels use `default` soundfont
 - Drum channels (channel 10) are automatically ignored
 - To include drum sounds or use different soundfonts, use the `-s` option and specify a soundfont for each channel
 - Use `-` as a soundfont name to ignore that channel
+- The `.txt` extension is optional for soundfont files - it will be added automatically if not specified
 
 ### Usage Examples
 
@@ -95,7 +96,7 @@ By default:
 
 3. Specify custom soundfonts:
 ```bash
-./run.sh song.mid -s default.txt sine.txt - default.txt
+./run.sh song.mid -s default sine - default
 ```
 This will use:
 - `default.txt` for channel 1
