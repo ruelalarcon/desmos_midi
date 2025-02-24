@@ -51,11 +51,27 @@ fn print_channel_info(song: &midi::ProcessedSong) {
     }
 }
 
+fn verify_soundfont_exists(name: &str) -> Result<(), String> {
+    if name == "-" {
+        return Ok(());
+    }
+    let path = Path::new("soundfonts").join(name);
+    if !path.exists() {
+        return Err(format!("ERROR: Soundfont file not found: {}\nMake sure the file exists in the 'soundfonts' directory!", name));
+    }
+    Ok(())
+}
+
 fn main() {
     let args = Args::parse();
 
+    // Check if MIDI file exists with a clear error message
     if !Path::new(&args.midi_file).exists() {
-        eprintln!("Error: MIDI file {} not found", args.midi_file);
+        eprintln!("\nERROR: MIDI file not found: {}\n", args.midi_file);
+        eprintln!("Please check that:");
+        eprintln!("1. The file path is correct");
+        eprintln!("2. The file exists");
+        eprintln!("3. You have permission to read the file\n");
         process::exit(1);
     }
 
@@ -80,13 +96,22 @@ fn main() {
                         .collect()
                 }
                 Err(e) => {
-                    eprintln!("Error getting channel info: {}", e);
+                    eprintln!("\nERROR: Failed to read MIDI file: {}\n", e);
                     process::exit(1);
                 }
             }
         } else {
             // Process each soundfont name to ensure .txt extension
-            args.soundfonts.iter().map(|s| process_soundfont_name(s)).collect()
+            let soundfonts: Vec<String> = args.soundfonts.iter().map(|s| process_soundfont_name(s)).collect();
+
+            // Verify all soundfonts exist before proceeding
+            for soundfont in &soundfonts {
+                if let Err(e) = verify_soundfont_exists(soundfont) {
+                    eprintln!("\n{}\n", e);
+                    process::exit(1);
+                }
+            }
+            soundfonts
         };
         midi::process_midi(&args.midi_file, soundfonts)
     };
@@ -102,21 +127,21 @@ fn main() {
                     if let Err(e) =
                         ClipboardContext::new().and_then(|mut ctx| ctx.set_contents(formula))
                     {
-                        eprintln!("Failed to copy to clipboard: {}", e);
+                        eprintln!("\nERROR: Failed to copy to clipboard: {}\n", e);
                         process::exit(1);
                     }
-                    println!("Copied to clipboard!");
+                    println!("Successfully copied to clipboard!");
                 } else {
                     // Output to console
                     if let Err(e) = io::stdout().write_all(formula.as_bytes()) {
-                        eprintln!("Failed to write to console: {}", e);
+                        eprintln!("\nERROR: Failed to write to console: {}\n", e);
                         process::exit(1);
                     }
                 }
             }
         }
         Err(e) => {
-            eprintln!("Error processing MIDI: {}", e);
+            eprintln!("\nERROR: Failed to process MIDI file: {}\n", e);
             process::exit(1);
         }
     }
