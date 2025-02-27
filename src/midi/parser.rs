@@ -1,11 +1,10 @@
 use super::timing::ticks_to_ms;
 use super::types::{
-    Channel, MidiNote, NoteEvent, ProcessedSong, SoundFontMap, TempoChange, TempoMap, Timestamp,
-    Velocity,
+    Channel, MidiError, MidiNote, NoteEvent, ProcessedSong, SoundFontMap, TempoChange, TempoMap,
+    Timestamp, Velocity,
 };
 use midly::{Smf, TrackEventKind};
 use std::collections::HashMap;
-use std::error::Error;
 
 const DRUM_CHANNEL: u8 = 9; // MIDI channel 10 (0-based)
 
@@ -21,12 +20,12 @@ const DRUM_CHANNEL: u8 = 9; // MIDI channel 10 (0-based)
 /// # Errors
 /// * If the MIDI file is invalid
 /// * If the timing format is unsupported
-pub fn parse_midi(midi_data: &[u8], info_only: bool) -> Result<ProcessedSong, Box<dyn Error>> {
+pub fn parse_midi(midi_data: &[u8], info_only: bool) -> Result<ProcessedSong, MidiError> {
     let smf = Smf::parse(midi_data)?;
 
     let ticks_per_quarter = match smf.header.timing {
         midly::Timing::Metrical(ticks) => ticks.as_int() as u32,
-        _ => return Err("Unsupported timing format".into()),
+        _ => return Err(MidiError::UnsupportedTimingFormat),
     };
 
     // Initialize tempo map and collect all events
@@ -189,7 +188,7 @@ pub fn parse_midi_with_soundfonts(
     midi_data: &[u8],
     soundfonts: Vec<Vec<f32>>,
     channel_to_index: Vec<Option<usize>>,
-) -> Result<ProcessedSong, Box<dyn Error>> {
+) -> Result<ProcessedSong, MidiError> {
     let mut song = parse_midi(midi_data, false)?;
 
     // Update the soundfont indices in note events using the channel mapping

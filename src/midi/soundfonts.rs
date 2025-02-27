@@ -1,12 +1,16 @@
-use std::error::Error;
+use super::types::MidiError;
 use std::fs;
 use std::path::Path;
 
-/// Parses a soundfont file from the soundfonts directory.
+/// Default directory for soundfont files
+const DEFAULT_SOUNDFONT_DIR: &str = "soundfonts";
+
+/// Parses a soundfont file from the specified directory.
 /// A soundfont file contains comma-separated floating point values representing harmonic weights.
 ///
 /// # Arguments
 /// * `filename` - Name of the file in the soundfonts directory
+/// * `soundfont_dir` - Optional directory path; defaults to "soundfonts" if None
 ///
 /// # Returns
 /// * `Option<Vec<f32>>` - Vector of harmonic weights or None if the filename is "-"
@@ -14,18 +18,44 @@ use std::path::Path;
 /// # Errors
 /// * If the file cannot be read
 /// * If the file contains invalid floating point numbers
-pub fn parse_soundfont_file(filename: &str) -> Result<Option<Vec<f32>>, Box<dyn Error>> {
+pub fn parse_soundfont_file(
+    filename: &str,
+    soundfont_dir: Option<&Path>,
+) -> Result<Option<Vec<f32>>, MidiError> {
     if filename == "-" {
         return Ok(None);
     }
-    let path = Path::new("soundfonts").join(filename);
-    let content = fs::read_to_string(path)?;
-    let values: Result<Vec<f32>, _> = content
-        .trim()
-        .split(',')
-        .map(|s| s.trim().parse())
-        .collect();
-    Ok(Some(values?))
+
+    let dir = soundfont_dir.unwrap_or_else(|| Path::new(DEFAULT_SOUNDFONT_DIR));
+    let path = dir.join(filename);
+
+    fs::read_to_string(&path)
+        .map_err(|e| MidiError::Io(e))
+        .and_then(|content| {
+            content
+                .trim()
+                .split(',')
+                .map(|s| s.trim().parse().map_err(MidiError::Parse))
+                .collect::<Result<Vec<f32>, _>>()
+                .map(Some)
+        })
+}
+
+/// Checks if a soundfont file exists in the soundfont directory.
+///
+/// # Arguments
+/// * `filename` - Name of the file to check
+/// * `soundfont_dir` - Optional directory path; defaults to "soundfonts" if None
+///
+/// # Returns
+/// * `bool` - True if the file exists, false otherwise
+pub fn soundfont_exists(filename: &str, soundfont_dir: Option<&Path>) -> bool {
+    if filename == "-" {
+        return true;
+    }
+
+    let dir = soundfont_dir.unwrap_or_else(|| Path::new(DEFAULT_SOUNDFONT_DIR));
+    dir.join(filename).exists()
 }
 
 /// Returns the General MIDI instrument name for a given program number.

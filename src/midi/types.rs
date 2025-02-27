@@ -114,68 +114,17 @@ impl ProcessedSong {
         let mut section_names = Vec::new();
 
         // Find all unique timestamps where notes start or end
-        let mut timestamps: Vec<f64> = self
-            .note_changes
-            .iter()
-            .flat_map(|event| {
-                let start = event.timestamp as f64 / 1000.0;
-                let ends = event
-                    .notes
-                    .iter()
-                    .map(|(_, _, _, end)| *end as f64 / 1000.0);
-                std::iter::once(start).chain(ends)
-            })
-            .collect();
-        timestamps.sort_by(|a, b| a.partial_cmp(b).unwrap());
-        timestamps.dedup();
+        let timestamps = self.collect_all_timestamps();
 
         // For each timestamp, collect all active notes
-        for window in timestamps.windows(2) {
-            let current_time = window[0];
-            let next_time = window[1];
-
-            // Find all notes that are active at this time
-            let mut active_notes = Vec::new();
-            for event in &self.note_changes {
-                let event_time = event.timestamp as f64 / 1000.0;
-                if event_time <= current_time {
-                    // Add notes from this event that are still playing
-                    for &(note, vel, sf, end_time) in &event.notes {
-                        if (end_time as f64 / 1000.0) > current_time {
-                            active_notes.push((note, vel, sf));
-                        }
-                    }
-                }
-            }
-
-            // Sort notes for consistent output
-            active_notes.sort_unstable_by_key(|(note, _, _)| *note);
-
-            // Format the array of active notes
-            let array_str = format_note_array_simple(&active_notes);
-            let piece = format!("t<{:0.3}:{}", next_time, array_str);
-
-            // Check if adding this piece would exceed the limit
-            if current_length + piece.len() > MAX_FORMULA_LENGTH && !current_section.is_empty() {
-                section_count += 1;
-                let section_name = format!("A_{{{}}}", section_count);
-                section_names.push(section_name.clone());
-
-                let section_formula = format!(
-                    "{}=\\left\\{{{}\\right\\}}",
-                    section_name,
-                    current_section.join(",")
-                );
-                formulas.push(section_formula);
-
-                current_section.clear();
-                current_length = 0;
-            }
-
-            let piece_len = piece.len();
-            current_section.push(piece);
-            current_length += piece_len;
-        }
+        self.process_timestamps(
+            &timestamps,
+            &mut formulas,
+            &mut current_section,
+            &mut current_length,
+            &mut section_count,
+            &mut section_names,
+        );
 
         // Add an empty array at the very end
         if let Some(&last_time) = timestamps.last() {
@@ -209,6 +158,101 @@ impl ProcessedSong {
         add_soundfont_formulas(&mut formulas, &self.soundfonts);
 
         formulas.join("\n")
+    }
+
+    /// Collects all timestamps where notes start or end.
+    ///
+    /// # Returns
+    /// * `Vec<f64>` - Sorted vector of unique timestamps in seconds
+    fn collect_all_timestamps(&self) -> Vec<f64> {
+        let mut timestamps: Vec<f64> = self
+            .note_changes
+            .iter()
+            .flat_map(|event| {
+                let start = event.timestamp as f64 / 1000.0;
+                let ends = event
+                    .notes
+                    .iter()
+                    .map(|(_, _, _, end)| *end as f64 / 1000.0);
+                std::iter::once(start).chain(ends)
+            })
+            .collect();
+        timestamps.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        timestamps.dedup();
+        timestamps
+    }
+
+    /// Processes timestamps and builds the piecewise formula sections.
+    ///
+    /// For each timestamp window, finds active notes and adds them to the formula.
+    /// Splits the formula into sections if it exceeds the maximum length.
+    fn process_timestamps(
+        &self,
+        timestamps: &[f64],
+        formulas: &mut Vec<String>,
+        current_section: &mut Vec<String>,
+        current_length: &mut usize,
+        section_count: &mut usize,
+        section_names: &mut Vec<String>,
+    ) {
+        for window in timestamps.windows(2) {
+            let current_time = window[0];
+            let next_time = window[1];
+
+            // Find all notes that are active at this time
+            let active_notes = self.collect_active_notes(current_time);
+
+            // Format the array of active notes
+            let array_str = format_note_array_simple(&active_notes);
+            let piece = format!("t<{:0.3}:{}", next_time, array_str);
+
+            // Check if adding this piece would exceed the limit
+            if *current_length + piece.len() > MAX_FORMULA_LENGTH && !current_section.is_empty() {
+                *section_count += 1;
+                let section_name = format!("A_{{{}}}", section_count);
+                section_names.push(section_name.clone());
+
+                let section_formula = format!(
+                    "{}=\\left\\{{{}\\right\\}}",
+                    section_name,
+                    current_section.join(",")
+                );
+                formulas.push(section_formula);
+
+                current_section.clear();
+                *current_length = 0;
+            }
+
+            let piece_len = piece.len();
+            current_section.push(piece);
+            *current_length += piece_len;
+        }
+    }
+
+    /// Collects all notes that are active at a given time.
+    ///
+    /// # Arguments
+    /// * `current_time` - Time in seconds
+    ///
+    /// # Returns
+    /// * `Vec<(MidiNote, Velocity, usize)>` - Vector of (note, velocity, soundfont_index) tuples
+    fn collect_active_notes(&self, current_time: f64) -> Vec<(MidiNote, Velocity, usize)> {
+        let mut active_notes = Vec::new();
+        for event in &self.note_changes {
+            let event_time = event.timestamp as f64 / 1000.0;
+            if event_time <= current_time {
+                // Add notes from this event that are still playing
+                for &(note, vel, sf, end_time) in &event.notes {
+                    if (end_time as f64 / 1000.0) > current_time {
+                        active_notes.push((note, vel, sf));
+                    }
+                }
+            }
+        }
+
+        // Sort notes for consistent output
+        active_notes.sort_unstable_by_key(|(note, _, _)| *note);
+        active_notes
     }
 }
 
@@ -290,4 +334,33 @@ fn add_soundfont_formulas(formulas: &mut Vec<String>, soundfonts: &SoundFontMap)
 /// * `RelativeNote` - Number of semitones from A4
 fn midi_note_to_relative(note: MidiNote) -> RelativeNote {
     (note as RelativeNote) - 69 // A (MIDI note 69 / 440 Hz) as root note (0)
+}
+
+/// Custom error type for MIDI processing
+#[derive(Debug, thiserror::Error)]
+pub enum MidiError {
+    #[error("IO error: {0}")]
+    Io(#[from] std::io::Error),
+
+    #[error("MIDI parsing error: {0}")]
+    MidiParse(#[from] midly::Error),
+
+    #[error("Invalid soundfont: {0}")]
+    InvalidSoundfont(String),
+
+    #[error("Unsupported MIDI timing format")]
+    UnsupportedTimingFormat,
+
+    #[error("Soundfont mismatch: {0}")]
+    SoundfontMismatch(String),
+
+    #[error("Parsing error: {0}")]
+    Parse(#[from] std::num::ParseFloatError),
+
+    #[error("Clipboard error: {0}")]
+    ClipboardError(String),
+
+    #[error("Other error: {0}")]
+    #[allow(dead_code)]
+    Other(String),
 }
