@@ -80,7 +80,7 @@ struct HarmonicParams {
     start_time: Option<f32>,
     #[serde(rename = "baseFreq")]
     base_freq: Option<f32>,
-    sensitivity: Option<u32>,
+    harmonics: Option<usize>,
 }
 
 #[tokio::main]
@@ -587,11 +587,13 @@ async fn harmonic_info_handler(
     let _samples = params.samples.unwrap_or(4096);
     let _start_time = params.start_time.unwrap_or(0.0);
     let _base_freq = params.base_freq.unwrap_or(440.0);
-    let _sensitivity = params.sensitivity.unwrap_or(50);
+    let _harmonics = params.harmonics.unwrap_or(16);
 
     // TODO: Implement WAV analysis
-    // For now, return dummy data
-    let harmonics = vec![1.0, 0.5, 0.25, 0.125];
+    // For now, return dummy data with the requested number of harmonics
+    let harmonics: Vec<f32> = (0.._harmonics)
+        .map(|i| 1.0 / (i + 1) as f32)
+        .collect();
 
     Ok(Json(HarmonicResponse { harmonics }))
 }

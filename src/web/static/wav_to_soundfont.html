@@ -139,8 +139,8 @@
         <div class="parameters">
             <div class="parameter">
                 <label for="samples">Samples (2^n)</label>
-                <input type="range" id="samples" min="10" max="15" value="12">
-                <div class="value" id="samples-value">4096 samples</div>
+                <input type="range" id="samples" min="10" max="15" value="13">
+                <div class="value" id="samples-value">8192 samples</div>
             </div>
 
             <div class="parameter">
@@ -156,9 +156,9 @@
             </div>
 
             <div class="parameter">
-                <label for="sensitivity">Sensitivity</label>
-                <input type="range" id="sensitivity" min="0" max="100" value="50">
-                <div class="value" id="sensitivity-value">50%</div>
+                <label for="harmonics">Number of Harmonics</label>
+                <input type="range" id="harmonics" min="1" max="32" value="16">
+                <div class="value" id="harmonics-value">16 harmonics</div>
             </div>
         </div>
 
@@ -169,4 +169,4 @@
 
     <script type="module" src="/static/js/wav_to_soundfont.js"></script>
 </body>
-</html> 
+</html>

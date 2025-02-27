@@ -16,8 +16,8 @@ const startTimeSlider = document.getElementById('start-time');
 const startTimeValue = document.getElementById('start-time-value');
 const baseFreqSlider = document.getElementById('base-freq');
 const baseFreqValue = document.getElementById('base-freq-value');
-const sensitivitySlider = document.getElementById('sensitivity');
-const sensitivityValue = document.getElementById('sensitivity-value');
+const harmonicsSlider = document.getElementById('harmonics');
+const harmonicsValue = document.getElementById('harmonics-value');
 
 // State
 let uploadedFilename = null;
@@ -36,7 +36,7 @@ saveBtn.addEventListener('click', saveSoundfont);
 samplesSlider.addEventListener('input', updateSamplesValue);
 startTimeSlider.addEventListener('input', updateStartTimeValue);
 baseFreqSlider.addEventListener('input', updateBaseFreqValue);
-sensitivitySlider.addEventListener('input', updateSensitivityValue);
+harmonicsSlider.addEventListener('input', updateHarmonicsValue);
 
 // Functions
 function handleDragOver(e) {
@@ -101,10 +101,10 @@ async function analyzeWav() {
         const samples = Math.pow(2, samplesSlider.value);
         const startTime = parseFloat(startTimeSlider.value);
         const baseFreq = parseInt(baseFreqSlider.value);
-        const sensitivity = parseInt(sensitivitySlider.value);
+        const harmonics = parseInt(harmonicsSlider.value);
 
         // Call the harmonic-info endpoint
-        const response = await fetch(`/harmonic-info/${uploadedFilename}?samples=${samples}&startTime=${startTime}&baseFreq=${baseFreq}&sensitivity=${sensitivity}`);
+        const response = await fetch(`/harmonic-info/${uploadedFilename}?samples=${samples}&startTime=${startTime}&baseFreq=${baseFreq}&harmonics=${harmonics}`);
 
         if (!response.ok) {
             throw new Error(await response.text());
@@ -164,8 +164,8 @@ function updateBaseFreqValue() {
     baseFreqValue.textContent = `${baseFreqSlider.value} Hz`;
 }
 
-function updateSensitivityValue() {
-    sensitivityValue.textContent = `${sensitivitySlider.value}%`;
+function updateHarmonicsValue() {
+    harmonicsValue.textContent = `${harmonicsSlider.value} harmonics`;
 }
 
 // Helper functions
@@ -188,4 +188,4 @@ function hideError() {
 updateSamplesValue();
 updateStartTimeValue();
 updateBaseFreqValue();
-updateSensitivityValue(); 
+updateHarmonicsValue();
