@@ -9,6 +9,8 @@ use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
     env,
+    fs::File,
+    io::Read,
     net::SocketAddr,
     path::{Path as StdPath, PathBuf},
     sync::{Arc, Mutex},
@@ -21,9 +23,33 @@ use tower_http::{
 };
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-// Constants for file expiration
-const FILE_EXPIRATION_MINUTES: u64 = 10;
-const FILE_REFRESH_THRESHOLD_MINUTES: u64 = 5;
+// Server configuration
+#[derive(Deserialize)]
+struct Config {
+    server: ServerConfig,
+}
+
+#[derive(Deserialize)]
+struct ServerConfig {
+    file_expiration_minutes: u64,
+    file_refresh_threshold_minutes: u64,
+    max_file_size_mb: u64,
+    limits: AnalysisLimits,
+}
+
+#[derive(Deserialize)]
+struct AnalysisLimits {
+    min_samples: usize,
+    max_samples: usize,
+    min_start_time: f32,
+    max_start_time: f32,
+    min_base_freq: f32,
+    max_base_freq: f32,
+    min_harmonics: usize,
+    max_harmonics: usize,
+}
+
+// Constants
 const DEFAULT_PORT: u16 = 8573;
 
 // App state
@@ -32,6 +58,7 @@ struct AppState {
     temp_dir: PathBuf,
     soundfont_dir: PathBuf,
     file_expirations: Arc<Mutex<HashMap<String, Instant>>>,
+    config: Arc<ServerConfig>,
 }
 
 // Response for MIDI info
@@ -94,6 +121,28 @@ async fn main() {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
+    // Load configuration
+    let config = load_config().unwrap_or_else(|e| {
+        tracing::warn!("Failed to load config.toml: {}. Using default values.", e);
+        Config {
+            server: ServerConfig {
+                file_expiration_minutes: 10,
+                file_refresh_threshold_minutes: 5,
+                max_file_size_mb: 80,
+                limits: AnalysisLimits {
+                    min_samples: 64,
+                    max_samples: 65536,
+                    min_start_time: 0.0,
+                    max_start_time: 300.0,
+                    min_base_freq: 1.0,
+                    max_base_freq: 20000.0,
+                    min_harmonics: 1,
+                    max_harmonics: 128,
+                },
+            },
+        }
+    });
+
     // Parse port from command line arguments
     let port = parse_port_from_args().unwrap_or(DEFAULT_PORT);
 
@@ -118,6 +167,7 @@ async fn main() {
         temp_dir,
         soundfont_dir,
         file_expirations,
+        config: Arc::new(config.server),
     });
 
     // Create static directory and subdirectories if they don't exist
@@ -223,7 +273,8 @@ async fn run_file_cleanup(state: Arc<AppState>) {
         // Find expired files
         {
             let mut expirations = state.file_expirations.lock().unwrap();
-            let expiration_duration = Duration::from_secs(FILE_EXPIRATION_MINUTES * 60);
+            let expiration_duration =
+                Duration::from_secs(state.config.file_expiration_minutes * 60);
 
             expirations.retain(|filename, expiration_time| {
                 let is_expired = now.duration_since(*expiration_time) >= expiration_duration;
@@ -283,10 +334,6 @@ async fn upload_handler(
             // Use the original filename directly
             original_filename = file_name;
 
-            // Create the file path
-            let path = state.temp_dir.join(&original_filename);
-            file_path = Some(path.clone());
-
             // Get the file data
             let data = field.bytes().await.map_err(|e| {
                 (
@@ -294,6 +341,22 @@ async fn upload_handler(
                     format!("Failed to read file: {}", e),
                 )
             })?;
+
+            // Check file size
+            let max_size = state.config.max_file_size_mb * 1024 * 1024; // Convert MB to bytes
+            if data.len() > max_size as usize {
+                return Err((
+                    StatusCode::BAD_REQUEST,
+                    format!(
+                        "File too large. Maximum size is {} MB",
+                        state.config.max_file_size_mb
+                    ),
+                ));
+            }
+
+            // Create the file path
+            let path = state.temp_dir.join(&original_filename);
+            file_path = Some(path.clone());
 
             // Write the file
             let mut file = fs::File::create(&path).await.map_err(|e| {
@@ -317,12 +380,12 @@ async fn upload_handler(
         }
     }
 
-    // Return the filename
+    // Return the filename with config values
     match file_path {
         Some(_) => Ok(Json(serde_json::json!({
             "filename": original_filename,
-            "expires_in_minutes": FILE_EXPIRATION_MINUTES,
-            "refresh_threshold_minutes": FILE_REFRESH_THRESHOLD_MINUTES
+            "expires_in_minutes": state.config.file_expiration_minutes,
+            "refresh_threshold_minutes": state.config.file_refresh_threshold_minutes
         }))),
         None => Err((
             StatusCode::BAD_REQUEST,
@@ -437,7 +500,7 @@ async fn refresh_file_handler(
         "status": "ok",
         "message": "File expiration refreshed",
         "filename": request.filename,
-        "expires_in_minutes": FILE_EXPIRATION_MINUTES
+        "expires_in_minutes": state.config.file_expiration_minutes
     })))
 }
 
@@ -583,17 +646,38 @@ async fn harmonic_info_handler(
         return Err((StatusCode::NOT_FOUND, "WAV file not found".to_string()));
     }
 
-    // Get parameters with defaults
-    let _samples = params.samples.unwrap_or(4096);
-    let _start_time = params.start_time.unwrap_or(0.0);
-    let _base_freq = params.base_freq.unwrap_or(440.0);
-    let _harmonics = params.harmonics.unwrap_or(16);
+    // Get parameters with defaults and apply limits
+    let _psamples = params.samples.unwrap_or(4096).clamp(
+        state.config.limits.min_samples,
+        state.config.limits.max_samples,
+    );
+
+    let _pstart_time = params.start_time.unwrap_or(0.0).clamp(
+        state.config.limits.min_start_time,
+        state.config.limits.max_start_time,
+    );
+
+    let _pbase_freq = params.base_freq.unwrap_or(440.0).clamp(
+        state.config.limits.min_base_freq,
+        state.config.limits.max_base_freq,
+    );
+
+    let pharmonics = params.harmonics.unwrap_or(16).clamp(
+        state.config.limits.min_harmonics,
+        state.config.limits.max_harmonics,
+    );
 
     // TODO: Implement WAV analysis
     // For now, return dummy data with the requested number of harmonics
-    let harmonics: Vec<f32> = (0.._harmonics)
-        .map(|i| 1.0 / (i + 1) as f32)
-        .collect();
+    let harmonics: Vec<f32> = (0..pharmonics).map(|i| 1.0 / (i + 1) as f32).collect();
 
     Ok(Json(HarmonicResponse { harmonics }))
+}
+
+// Load configuration from config.toml
+fn load_config() -> Result<Config, Box<dyn std::error::Error>> {
+    let mut file = File::open("config.toml")?;
+    let mut contents = String::new();
+    file.read_to_string(&mut contents)?;
+    Ok(toml::from_str(&contents)?)
 }

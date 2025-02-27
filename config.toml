@@ -1,0 +1,20 @@
+[server]
+# Time in minutes before uploaded files are deleted
+file_expiration_minutes = 10
+
+# Time in minutes before file expiration when refresh should occur
+file_refresh_threshold_minutes = 5
+
+# Maximum file size in megabytes
+max_file_size_mb = 80
+
+# WAV analysis parameter limits
+[server.limits]
+min_samples = 64        # Minimum number of samples (2^6)
+max_samples = 65536     # Maximum number of samples (2^16)
+min_start_time = 0.0    # Minimum start time in seconds
+max_start_time = 300.0  # Maximum start time in seconds (5 minutes)
+min_base_freq = 1.0     # Minimum base frequency in Hz
+max_base_freq = 20000.0 # Maximum base frequency in Hz (human hearing limit)
+min_harmonics = 1       # Minimum number of harmonics
+max_harmonics = 256     # Maximum number of harmonics
