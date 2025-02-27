@@ -1,6 +1,6 @@
 # Desmos MIDI Player
 
-> A Rust-based CLI tool for converting MIDI files into formulas for Desmos. Complete with support for note velocity, tempo changes, and even custom soundfonts for different channels/instruments.
+> A Rust-based CLI tool and Web UI for converting MIDI files into formulas for Desmos. Complete with support for note velocity, tempo changes, and even custom soundfonts for different channels/instruments.
 
 ## Installation
 
