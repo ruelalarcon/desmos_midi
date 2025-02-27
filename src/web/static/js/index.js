@@ -1,10 +1,10 @@
+// Import the file manager module
+import * as fileManager from './modules/fileManager.js';
+
 // Global variables
 let uploadedFilename = null;
 let availableSoundfonts = [];
 let channelInfo = [];
-let fileExpirationMinutes = 10;
-let fileRefreshThresholdMinutes = 5;
-let fileRefreshIntervalId = null;
 
 // DOM elements
 const uploadArea = document.getElementById('upload-area');
@@ -69,154 +69,55 @@ function handleFileSelect() {
     uploadMidiFile(file);
 }
 
-function uploadMidiFile(file) {
+async function uploadMidiFile(file) {
     // Reset UI
     hideError();
     uploadLoading.classList.remove('hidden');
 
-    // Stop any existing file refresh interval
-    stopFileRefreshInterval();
+    try {
+        // Upload the file using the file manager
+        const data = await fileManager.uploadFile(file);
 
-    // Create form data
-    const formData = new FormData();
-    formData.append('midi_file', file);
+        uploadedFilename = data.filename;
 
-    // Upload the file
-    fetch('/upload', {
-        method: 'POST',
-        body: formData
-    })
-        .then(response => {
-            if (!response.ok) {
-                return response.text().then(text => {
-                    throw new Error(text || 'Failed to upload MIDI file');
-                });
-            }
-            return response.json();
-        })
-        .then(data => {
-            uploadedFilename = data.filename;
-            fileExpirationMinutes = data.expires_in_minutes || 10;
-            fileRefreshThresholdMinutes = data.refresh_threshold_minutes || 5;
+        uploadSuccess.textContent = `Successfully uploaded: ${file.name}`;
+        uploadSuccess.classList.remove('hidden');
 
-            uploadSuccess.textContent = `Successfully uploaded: ${file.name}`;
-            uploadSuccess.classList.remove('hidden');
-
-            // Start file refresh interval
-            startFileRefreshInterval();
-
-            // Load channel information
-            loadChannelInfo(uploadedFilename);
-        })
-        .catch(error => {
-            showError(error.message);
-        })
-        .finally(() => {
-            uploadLoading.classList.add('hidden');
-        });
-}
-
-function startFileRefreshInterval() {
-    // Clear any existing interval
-    stopFileRefreshInterval();
-
-    if (!uploadedFilename) return;
-
-    // Calculate refresh interval (check when 5 minutes are left)
-    const checkIntervalMs = (fileExpirationMinutes - fileRefreshThresholdMinutes) * 60 * 1000;
-
-    // Set up interval to refresh the file
-    fileRefreshIntervalId = setInterval(() => {
-        refreshFile(uploadedFilename);
-    }, checkIntervalMs);
-
-    console.log(`File refresh interval started. Will refresh every ${(fileExpirationMinutes - fileRefreshThresholdMinutes)} minutes.`);
-}
-
-function stopFileRefreshInterval() {
-    if (fileRefreshIntervalId) {
-        clearInterval(fileRefreshIntervalId);
-        fileRefreshIntervalId = null;
+        // Load channel information
+        loadChannelInfo(uploadedFilename);
+    } catch (error) {
+        showError(error.message);
+    } finally {
+        uploadLoading.classList.add('hidden');
     }
 }
 
-function refreshFile(filename) {
-    if (!filename) return;
-
-    console.log(`Refreshing file: ${filename}`);
-
-    fetch('/refresh-file', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            filename: filename
-        })
-    })
-        .then(response => {
-            if (!response.ok) {
-                console.error('Failed to refresh file');
-                // If refresh fails, stop trying
-                stopFileRefreshInterval();
-                return;
-            }
-            return response.json();
-        })
-        .then(data => {
-            console.log('File refreshed successfully', data);
-        })
-        .catch(error => {
-            console.error('Error refreshing file:', error);
-            // If refresh fails, stop trying
-            stopFileRefreshInterval();
-        });
+async function loadSoundfonts() {
+    try {
+        availableSoundfonts = await fileManager.getSoundfonts();
+        // Add the ignore option
+        availableSoundfonts.unshift('-');
+    } catch (error) {
+        console.error('Error loading soundfonts:', error);
+    }
 }
 
-function loadSoundfonts() {
-    fetch('/soundfonts')
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Failed to load soundfonts');
-            }
-            return response.json();
-        })
-        .then(data => {
-            availableSoundfonts = data.soundfonts || [];
-            // Add the ignore option
-            availableSoundfonts.unshift('-');
-        })
-        .catch(error => {
-            console.error('Error loading soundfonts:', error);
-        });
-}
-
-function loadChannelInfo(filename) {
+async function loadChannelInfo(filename) {
     // Reset UI
     channelList.innerHTML = '';
     soundfontLoading.classList.remove('hidden');
     step2.classList.remove('hidden');
 
-    fetch(`/midi-info/${filename}`)
-        .then(response => {
-            if (!response.ok) {
-                return response.text().then(text => {
-                    throw new Error(text || 'Failed to load channel information');
-                });
-            }
-            return response.json();
-        })
-        .then(data => {
-            channelInfo = data.channels || [];
-            populateChannelTable(channelInfo);
-            convertBtn.disabled = false;
-        })
-        .catch(error => {
-            showError(error.message);
-        })
-        .finally(() => {
-            soundfontLoading.classList.add('hidden');
-        });
+    try {
+        const data = await fileManager.getMidiInfo(filename);
+        channelInfo = data.channels || [];
+        populateChannelTable(channelInfo);
+        convertBtn.disabled = false;
+    } catch (error) {
+        showError(error.message);
+    } finally {
+        soundfontLoading.classList.add('hidden');
+    }
 }
 
 function populateChannelTable(channels) {
@@ -266,7 +167,7 @@ function populateChannelTable(channels) {
     });
 }
 
-function convertMidi() {
+async function convertMidi() {
     // Get selected soundfonts
     const soundfonts = [];
     const selectors = document.querySelectorAll('select[data-channel]');
@@ -281,35 +182,16 @@ function convertMidi() {
     resultArea.textContent = '';
     copyBtn.disabled = true;
 
-    // Send conversion request
-    fetch('/convert', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            filename: uploadedFilename,
-            soundfonts: soundfonts
-        })
-    })
-        .then(response => {
-            if (!response.ok) {
-                return response.text().then(text => {
-                    throw new Error(text || 'Failed to convert MIDI file');
-                });
-            }
-            return response.json();
-        })
-        .then(data => {
-            resultArea.textContent = data.formula;
-            copyBtn.disabled = false;
-        })
-        .catch(error => {
-            showError(error.message);
-        })
-        .finally(() => {
-            convertLoading.classList.add('hidden');
-        });
+    try {
+        // Convert the MIDI file using the file manager
+        const data = await fileManager.convertMidi(uploadedFilename, soundfonts);
+        resultArea.textContent = data.formula;
+        copyBtn.disabled = false;
+    } catch (error) {
+        showError(error.message);
+    } finally {
+        convertLoading.classList.add('hidden');
+    }
 }
 
 function copyToClipboard() {
@@ -334,8 +216,3 @@ function hideError() {
     uploadError.classList.add('hidden');
     uploadSuccess.classList.add('hidden');
 }
-
-// Clean up when the page is unloaded
-window.addEventListener('beforeunload', () => {
-    stopFileRefreshInterval();
-});
