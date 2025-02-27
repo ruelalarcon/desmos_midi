@@ -8,6 +8,7 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
+    env,
     net::SocketAddr,
     path::{Path as StdPath, PathBuf},
     sync::{Arc, Mutex},
@@ -24,6 +25,7 @@ use uuid::Uuid;
 // Constants for file expiration
 const FILE_EXPIRATION_MINUTES: u64 = 10;
 const FILE_REFRESH_THRESHOLD_MINUTES: u64 = 5;
+const DEFAULT_PORT: u16 = 8573;
 
 // App state
 #[derive(Clone)]
@@ -76,6 +78,9 @@ async fn main() {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
+    // Parse port from command line arguments
+    let port = parse_port_from_args().unwrap_or(DEFAULT_PORT);
+
     // Create temp directory if it doesn't exist
     let temp_dir = PathBuf::from("temp");
     if !temp_dir.exists() {
@@ -127,11 +132,27 @@ async fn main() {
         );
 
     // Start server
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
-    tracing::info!("Listening on {}", addr);
+    let addr = SocketAddr::from(([127, 0, 0, 1], port));
+    tracing::info!("Listening on http://localhost:{}", port);
 
     let listener = TcpListener::bind(&addr).await.unwrap();
     axum::serve(listener, app).await.unwrap();
+}
+
+// Parse port from command line arguments
+// Format: --port XXXX or -p XXXX
+fn parse_port_from_args() -> Option<u16> {
+    let args: Vec<String> = env::args().collect();
+
+    for i in 0..args.len() - 1 {
+        if args[i] == "--port" || args[i] == "-p" {
+            if let Ok(port) = args[i + 1].parse::<u16>() {
+                return Some(port);
+            }
+        }
+    }
+
+    None
 }
 
 // Clean up all files in the temp directory

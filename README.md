@@ -58,12 +58,19 @@ For a user-friendly experience, you can use the web interface:
 ./webui.sh   # Linux/Mac
 ```
 
-This will start a local web server at `http://localhost:3000` where you can:
+This will start a local web server at `http://localhost:8573` where you can:
 1. Upload MIDI files
 2. View channel information
 3. Configure soundfonts for each channel
 4. Convert to Desmos formula
 5. Copy the formula to clipboard
+
+You can also specify a custom port:
+
+```bash
+./webui.bat --port 9000  # Windows
+./webui.sh --port 9000   # Linux/Mac
+```
 
 ## Usage
 
