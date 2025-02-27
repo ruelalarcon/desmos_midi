@@ -1,8 +1,8 @@
 [package]
 name = "desmos_midi"
 authors = ["Ruel Nathaniel Alarcon"]
-description = "A Rust-based CLI tool for converting MIDI files into formulas for Desmos."
-version = "1.0.1"
+description = "A Rust-based CLI tool and Web UI for converting MIDI files into formulas for Desmos."
+version = "1.1.0"
 edition = "2021"
 license = "MIT"
 repository = "https://github.com/ruelalarcon/desmos_midi"
@@ -16,6 +16,22 @@ clipboard = "0.5"
 clap = { version = "4.5", features = ["derive"] }
 thiserror = "2.0.11"
 
+# Web server dependencies
+axum = { version = "0.8.1", features = ["multipart"] }
+tokio = { version = "1.36", features = ["full"] }
+tower-http = { version = "0.6.2", features = ["fs", "trace"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+uuid = { version = "1.7", features = ["v4", "serde"] }
+tower = "0.5.2"
+mime = "0.3"
+
 [[bin]]
 name = "desmos_midi"
-path = "src/main.rs"
+path = "src/cli.rs"
+
+[[bin]]
+name = "desmos_midi_web"
+path = "src/web/server.rs"

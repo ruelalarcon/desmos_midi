@@ -1,6 +1,6 @@
 # Desmos MIDI Player
 
-> A Rust-based CLI tool for converting MIDI files into formulas for Desmos. Complete with support for note velocity, tempo changes, and even custom soundfonts for different channels/instruments.
+> A Rust-based CLI tool and Web UI for converting MIDI files into formulas for Desmos. Complete with support for note velocity, tempo changes, and even custom soundfonts for different channels/instruments.
 
 ## Installation
 
@@ -49,26 +49,44 @@ To clean build artifacts at any time, you can use:
 ./clean.sh   # Linux/Mac
 ```
 
+## Web Interface
+
+For a user-friendly experience, you can use the web interface by opening the `webui.bat` on Windows, or `webui.sh` on Linux/Mac.
+
+This will start a local web server at `http://localhost:8573` where you can:
+1. Upload MIDI files
+2. View channel information
+3. Configure soundfonts for each channel
+4. Convert to Desmos formula
+5. Copy the formula to clipboard
+
+You can also specify a custom port:
+
+```bash
+./webui.bat --port 9000  # Windows
+./webui.sh --port 9000   # Linux/Mac
+```
+
 ## Usage
 
 Navigate to [this Desmos graph](https://www.desmos.com/calculator/1rzq4xa5v0).
 
-Once you have a MIDI file you wish to use, run the following command:
+### Command Line Interface
 
 **Basic Usage:**
 ```bash
-./run.bat <midi_file>  # Windows
-./run.sh <midi_file>   # Linux/Mac
+./convert.bat <midi_file>  # Windows
+./convert.sh <midi_file>   # Linux/Mac
 ```
 > Note: From now on, we will use `.sh` for the rest of the examples, but if you are on Windows make sure to use the `.bat` versions instead.
 
 **Advanced Usage:**
 ```bash
-./run.sh <midi_file> -s <soundfont1> <soundfont2> ...  # Specify soundfonts for each channel
-./run.sh <midi_file> -i                                # Show channel information
+./convert.sh <midi_file> -s <soundfont1> <soundfont2> ...  # Specify soundfonts for each channel
+./convert.sh <midi_file> -i                                # Show channel information
 ```
 
-### Arguments
+### Arguments (CLI)
 - `<midi_file>`: Path to the input MIDI file to convert
 - `-s, --soundfonts <FILES>`: Soundfont files to use for each channel (optional)
 - `-i, --info`: Show MIDI channel information and exit
@@ -86,17 +104,17 @@ By default:
 
 1. Basic conversion with default settings (drums ignored):
 ```bash
-./run.sh song.mid
+./convert.sh song.mid
 ```
 
 2. View channel information:
 ```bash
-./run.sh song.mid -i
+./convert.sh song.mid -i
 ```
 
 3. Specify custom soundfonts:
 ```bash
-./run.sh song.mid -s default sine - default
+./convert.sh song.mid -s default sine - default
 ```
 This will use:
 - `default.txt` for channel 1
@@ -106,7 +124,7 @@ This will use:
 
 4. Copy to clipboard instead of console output:
 ```bash
-./run.sh song.mid -c
+./convert.sh song.mid -c
 ```
 
 Now enable audio in Desmos through the button in the top left:
@@ -168,11 +186,25 @@ Now enable audio in Desmos through the button in the top left:
    - Soundfonts are stored in the `soundfonts/` directory and are text files containing comma-separated floating point values representing harmonic weights (weights for each frequency in the harmonic series, which can be used to generate a static waveform)
    - The `B` is a "list of lists" of harmonic weights, however, Desmos does not support nested lists so instead, the `C` value is the maximum size of the soundfont arrays (after padding) and we use that to index sublists in `B`
 
+### Web Interface
+
+The web interface is built using:
+- **Backend**: Axum web framework (Rust)
+- **Frontend**: HTML, CSS, and JavaScript
+- **Features**:
+  - File upload with drag-and-drop support
+  - Dynamic soundfont selection
+  - Real-time MIDI channel information
+  - One-click formula copying
+
 ## Dependencies
 
 - `midly`: MIDI file parsing
 - `clipboard`: System clipboard integration
 - `clap`: Command line argument parsing
+- `axum`: Web server framework
+- `tokio`: Asynchronous runtime
+- `tower-http`: HTTP components for Tower
 
 ## Credits
 

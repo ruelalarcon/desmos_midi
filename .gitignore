@@ -16,6 +16,9 @@ bin/
 *.midi
 *.mid
 
+# Temporary files
+temp/
+
 # Ensure scripts maintain their line endings
 *.sh text eol=lf
 *.bat text eol=crlf

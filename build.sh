@@ -7,4 +7,4 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-echo "Build complete! You can now use './run.sh' to run the program."
+echo "Build complete! You can now use './convert.sh' or './webui.sh' to run the program."
