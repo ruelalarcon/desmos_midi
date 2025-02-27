@@ -21,14 +21,65 @@ const DRUM_CHANNEL: u8 = 9; // MIDI channel 10 (0-based)
 /// * If the MIDI file is invalid
 /// * If the timing format is unsupported
 pub fn parse_midi(midi_data: &[u8], info_only: bool) -> Result<ProcessedSong, MidiError> {
+    // Parse the MIDI file
     let smf = Smf::parse(midi_data)?;
 
-    let ticks_per_quarter = match smf.header.timing {
-        midly::Timing::Metrical(ticks) => ticks.as_int() as u32,
-        _ => return Err(MidiError::UnsupportedTimingFormat),
-    };
+    // Get the ticks per quarter note from the MIDI header
+    let ticks_per_quarter = extract_ticks_per_quarter(&smf)?;
 
-    // Initialize tempo map and collect all events
+    // Extract tempo changes and channel information
+    let (tempo_map, channels, all_events) = extract_midi_metadata(&smf, ticks_per_quarter)?;
+
+    // If we only need channel info, return early with empty notes
+    if info_only {
+        return Ok(ProcessedSong {
+            note_changes: Vec::new(),
+            channels,
+            soundfonts: SoundFontMap::new(vec![vec![1.0]]), // Dummy soundfont
+        });
+    }
+
+    // Process note events
+    let note_events = process_note_events(all_events, &tempo_map);
+
+    Ok(ProcessedSong {
+        note_changes: note_events,
+        channels,
+        soundfonts: SoundFontMap::new(vec![vec![1.0]]), // Will be replaced by parse_midi_with_soundfonts
+    })
+}
+
+/// Extracts the ticks per quarter note from the MIDI file header
+///
+/// # Arguments
+/// * `smf` - Parsed MIDI file
+///
+/// # Returns
+/// * `u32` - Ticks per quarter note
+///
+/// # Errors
+/// * If the timing format is unsupported
+fn extract_ticks_per_quarter(smf: &Smf) -> Result<u32, MidiError> {
+    match smf.header.timing {
+        midly::Timing::Metrical(ticks) => Ok(ticks.as_int() as u32),
+        _ => Err(MidiError::UnsupportedTimingFormat),
+    }
+}
+
+/// Extracts tempo changes, channel information, and note events from a MIDI file
+///
+/// # Arguments
+/// * `smf` - Parsed MIDI file
+/// * `ticks_per_quarter` - Ticks per quarter note
+///
+/// # Returns
+/// * `(TempoMap, Vec<Channel>, Vec<(u64, u8, midly::MidiMessage)>)` -
+///   Tempo map, channels, and note events
+fn extract_midi_metadata(
+    smf: &Smf,
+    ticks_per_quarter: u32
+) -> Result<(TempoMap, Vec<Channel>, Vec<(u64, u8, midly::MidiMessage)>), MidiError> {
+    // Initialize data structures
     let mut tempo_map = TempoMap::new(ticks_per_quarter);
     let mut all_events = Vec::new();
     let mut tempo_changes = Vec::new();
@@ -36,6 +87,39 @@ pub fn parse_midi(midi_data: &[u8], info_only: bool) -> Result<ProcessedSong, Mi
     let mut channel_instruments = HashMap::new();
 
     // First pass: collect all events and tempo changes with absolute timestamps
+    collect_events_from_tracks(
+        smf,
+        &mut tempo_changes,
+        &mut all_events,
+        &mut channels,
+        &mut channel_instruments
+    );
+
+    // Sort and process tempo changes
+    process_tempo_changes(&mut tempo_map, &mut tempo_changes);
+
+    // Convert channels HashMap to Vec, sorted by channel ID
+    let mut channel_vec: Vec<Channel> = channels.into_values().collect();
+    channel_vec.sort_by_key(|c| c.id);
+
+    Ok((tempo_map, channel_vec, all_events))
+}
+
+/// Collects events from all tracks in the MIDI file
+///
+/// # Arguments
+/// * `smf` - Parsed MIDI file
+/// * `tempo_changes` - Collection to store tempo changes
+/// * `all_events` - Collection to store MIDI events
+/// * `channels` - Collection to store channel information
+/// * `channel_instruments` - Collection to track instruments for each channel
+fn collect_events_from_tracks(
+    smf: &Smf,
+    tempo_changes: &mut Vec<TempoChange>,
+    all_events: &mut Vec<(u64, u8, midly::MidiMessage)>,
+    channels: &mut HashMap<u8, Channel>,
+    channel_instruments: &mut HashMap<u8, u8>,
+) {
     for track in smf.tracks.iter() {
         let mut track_time: u64 = 0;
         for event in track {
@@ -73,25 +157,20 @@ pub fn parse_midi(midi_data: &[u8], info_only: bool) -> Result<ProcessedSong, Mi
             }
         }
     }
+}
 
-    // Convert channels HashMap to Vec, sorted by channel ID
-    let mut channel_vec: Vec<Channel> = channels.into_values().collect();
-    channel_vec.sort_by_key(|c| c.id);
-
-    if info_only {
-        return Ok(ProcessedSong {
-            note_changes: Vec::new(),
-            channels: channel_vec,
-            soundfonts: SoundFontMap::new(vec![vec![1.0]]), // Dummy soundfont
-        });
-    }
-
-    // Sort and merge tempo changes, ensuring they are in chronological order
+/// Processes and merges tempo changes, ensuring they are in chronological order
+///
+/// # Arguments
+/// * `tempo_map` - Tempo map to update
+/// * `tempo_changes` - Collection of tempo changes to process
+fn process_tempo_changes(tempo_map: &mut TempoMap, tempo_changes: &mut Vec<TempoChange>) {
+    // Sort tempo changes by time
     tempo_changes.sort_by_key(|change| change.tick);
 
     // Merge tempo changes that occur at the same tick, keeping the last one
     let mut last_tick = None;
-    for change in tempo_changes {
+    for change in tempo_changes.clone() {
         match last_tick {
             Some(tick) if tick == change.tick => {
                 // Replace the last tempo change at this tick
@@ -105,45 +184,59 @@ pub fn parse_midi(midi_data: &[u8], info_only: bool) -> Result<ProcessedSong, Mi
             }
         }
     }
+}
 
-    // Sort note events by timestamp
-    all_events.sort_by_key(|(time, _, _)| *time);
+/// Processes note events and converts them to NoteEvent structures
+///
+/// # Arguments
+/// * `all_events` - Collection of MIDI events
+/// * `tempo_map` - Tempo map for timing conversion
+///
+/// # Returns
+/// * `Vec<NoteEvent>` - Processed note events
+fn process_note_events(
+    all_events: Vec<(u64, u8, midly::MidiMessage)>,
+    tempo_map: &TempoMap,
+) -> Vec<NoteEvent> {
+    // Active notes being tracked: (Note, Channel) -> (Velocity, Start Time)
+    let mut active_notes: HashMap<(MidiNote, u8), (Velocity, Timestamp)> = HashMap::new();
 
-    // Process the merged events
-    let mut active_notes: HashMap<(MidiNote, u8), (Velocity, Timestamp)> = HashMap::new(); // (Note, Channel) -> (Velocity, Start Time)
-    let mut note_changes: HashMap<Timestamp, Vec<(MidiNote, Velocity, usize, Timestamp)>> =
-        HashMap::new();
+    // Note changes grouped by start time: Start Time -> Vec<(Note, Velocity, Channel, End Time)>
+    let mut note_changes: HashMap<Timestamp, Vec<(MidiNote, Velocity, usize, Timestamp)>> = HashMap::new();
+
+    // Sort events by time
+    let mut sorted_events = all_events;
+    sorted_events.sort_by_key(|(time, _, _)| *time);
 
     // Find the last MIDI event time for proper song duration
-    let last_event_time = all_events
+    let last_event_time = sorted_events
         .last()
-        .map(|(time, _, _)| ticks_to_ms(*time, &tempo_map))
+        .map(|(time, _, _)| ticks_to_ms(*time, tempo_map))
         .unwrap_or(0);
 
-    for (track_time, channel, message) in all_events {
-        let current_time = ticks_to_ms(track_time, &tempo_map);
+    // Process each MIDI event
+    for (track_time, channel, message) in sorted_events {
+        let current_time = ticks_to_ms(track_time, tempo_map);
 
         match message {
             midly::MidiMessage::NoteOn { key, vel } => {
-                let note_key = (key.as_int(), channel);
-                if vel.as_int() > 0 {
-                    // Note on - record start time
-                    active_notes.insert(note_key, (vel.as_int(), current_time));
-                } else {
-                    // Note off - if note was active, add it to changes with its duration
-                    if let Some((velocity, start_time)) = active_notes.remove(&note_key) {
-                        let changes = note_changes.entry(start_time).or_default();
-                        changes.push((key.as_int(), velocity, channel as usize, current_time));
-                    }
-                }
+                handle_note_on(
+                    key.as_int(),
+                    vel.as_int(),
+                    channel,
+                    current_time,
+                    &mut active_notes,
+                    &mut note_changes
+                );
             }
             midly::MidiMessage::NoteOff { key, .. } => {
-                // Explicit note off - if note was active, add it to changes with its duration
-                let note_key = (key.as_int(), channel);
-                if let Some((velocity, start_time)) = active_notes.remove(&note_key) {
-                    let changes = note_changes.entry(start_time).or_default();
-                    changes.push((key.as_int(), velocity, channel as usize, current_time));
-                }
+                handle_note_off(
+                    key.as_int(),
+                    channel,
+                    current_time,
+                    &mut active_notes,
+                    &mut note_changes
+                );
             }
             _ => {}
         }
@@ -155,17 +248,66 @@ pub fn parse_midi(midi_data: &[u8], info_only: bool) -> Result<ProcessedSong, Mi
         changes.push((note, velocity, channel as usize, last_event_time));
     }
 
+    // Convert the note_changes map to a sorted vector of NoteEvent objects
     let mut events: Vec<NoteEvent> = note_changes
         .into_iter()
         .map(|(timestamp, notes)| NoteEvent { timestamp, notes })
         .collect();
     events.sort_by_key(|event| event.timestamp);
 
-    Ok(ProcessedSong {
-        note_changes: events,
-        channels: channel_vec,
-        soundfonts: SoundFontMap::new(vec![vec![1.0]]), // Will be replaced by parse_midi_with_soundfonts
-    })
+    events
+}
+
+/// Handles a note-on event
+///
+/// # Arguments
+/// * `note` - MIDI note number
+/// * `velocity` - Note velocity
+/// * `channel` - MIDI channel
+/// * `current_time` - Current time in milliseconds
+/// * `active_notes` - Collection of active notes being tracked
+/// * `note_changes` - Collection of note changes grouped by start time
+fn handle_note_on(
+    note: u8,
+    velocity: u8,
+    channel: u8,
+    current_time: u64,
+    active_notes: &mut HashMap<(MidiNote, u8), (Velocity, Timestamp)>,
+    note_changes: &mut HashMap<Timestamp, Vec<(MidiNote, Velocity, usize, Timestamp)>>,
+) {
+    let note_key = (note, channel);
+
+    if velocity > 0 {
+        // Note on - record start time
+        active_notes.insert(note_key, (velocity, current_time));
+    } else {
+        // Note on with velocity 0 is equivalent to note off
+        handle_note_off(note, channel, current_time, active_notes, note_changes);
+    }
+}
+
+/// Handles a note-off event
+///
+/// # Arguments
+/// * `note` - MIDI note number
+/// * `channel` - MIDI channel
+/// * `current_time` - Current time in milliseconds
+/// * `active_notes` - Collection of active notes being tracked
+/// * `note_changes` - Collection of note changes grouped by start time
+fn handle_note_off(
+    note: u8,
+    channel: u8,
+    current_time: u64,
+    active_notes: &mut HashMap<(MidiNote, u8), (Velocity, Timestamp)>,
+    note_changes: &mut HashMap<Timestamp, Vec<(MidiNote, Velocity, usize, Timestamp)>>,
+) {
+    let note_key = (note, channel);
+
+    // If note was active, add it to changes with its duration
+    if let Some((velocity, start_time)) = active_notes.remove(&note_key) {
+        let changes = note_changes.entry(start_time).or_default();
+        changes.push((note, velocity, channel as usize, current_time));
+    }
 }
 
 /// Parses a MIDI file with soundfont information.
@@ -191,6 +333,23 @@ pub fn parse_midi_with_soundfonts(
 ) -> Result<ProcessedSong, MidiError> {
     let mut song = parse_midi(midi_data, false)?;
 
+    // Update song with soundfont information
+    update_song_with_soundfonts(&mut song, soundfonts, channel_to_index);
+
+    Ok(song)
+}
+
+/// Updates a song with soundfont information
+///
+/// # Arguments
+/// * `song` - Song to update
+/// * `soundfonts` - Vector of soundfonts to use
+/// * `channel_to_index` - Mapping from channel numbers to soundfont indices
+fn update_song_with_soundfonts(
+    song: &mut ProcessedSong,
+    soundfonts: Vec<Vec<f32>>,
+    channel_to_index: Vec<Option<usize>>,
+) {
     // Update the soundfont indices in note events using the channel mapping
     // and filter out notes for channels without soundfonts
     for event in &mut song.note_changes {
@@ -208,5 +367,4 @@ pub fn parse_midi_with_soundfonts(
     song.note_changes.retain(|event| !event.notes.is_empty());
 
     song.soundfonts = SoundFontMap::new(soundfonts);
-    Ok(song)
 }
