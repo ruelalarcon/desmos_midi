@@ -31,8 +31,8 @@ tempfile = "3.10"
 
 [[bin]]
 name = "desmos_midi"
-path = "src/main.rs"
+path = "src/cli.rs"
 
 [[bin]]
 name = "desmos_midi_web"
-path = "src/web/main.rs"
+path = "src/web/server.rs"
