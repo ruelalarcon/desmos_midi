@@ -68,6 +68,102 @@ harmonicsSlider.addEventListener('input', () => {
 // Volume control
 volumeControl.addEventListener('input', updateVolume);
 
+// Parameter update functions
+function updateSamplesValue() {
+    const samples = Math.pow(2, samplesSlider.value);
+    samplesValue.textContent = `${samples} samples`;
+}
+
+function updateStartTimeValue() {
+    startTimeValue.value = startTimeSlider.value;
+}
+
+function updateBaseFreqValue() {
+    baseFreqValue.value = baseFreqSlider.value;
+}
+
+function updateHarmonicsValue() {
+    harmonicsValue.value = harmonicsSlider.value;
+}
+
+function handleStartTimeInput(event) {
+    let value = parseFloat(event.target.value);
+    if (isNaN(value)) {
+        value = parseFloat(startTimeSlider.value);
+    } else {
+        // Clamp value between min and max
+        value = Math.max(startTimeSlider.min, Math.min(startTimeSlider.max, value));
+    }
+    startTimeSlider.value = value;
+    updateStartTimeValue();
+    debounceAnalysis();
+}
+
+function handleBaseFreqInput(event) {
+    let value = parseInt(event.target.value);
+    if (isNaN(value)) {
+        value = parseInt(baseFreqSlider.value);
+    } else {
+        // Clamp value between min and max
+        value = Math.max(baseFreqSlider.min, Math.min(baseFreqSlider.max, value));
+    }
+    baseFreqSlider.value = value;
+    updateBaseFreqValue();
+    debounceAnalysis();
+}
+
+function handleHarmonicsInput(event) {
+    let value = parseInt(event.target.value);
+    if (isNaN(value)) {
+        value = parseInt(harmonicsSlider.value);
+    } else {
+        // Clamp value between min and max
+        value = Math.max(harmonicsSlider.min, Math.min(harmonicsSlider.max, value));
+    }
+    harmonicsSlider.value = value;
+    updateHarmonicsValue();
+    debounceAnalysis();
+}
+
+// Add event listeners for input fields
+startTimeValue.addEventListener('blur', handleStartTimeInput);
+startTimeValue.addEventListener('keypress', (event) => {
+    if (event.key === 'Enter') {
+        event.preventDefault();
+        handleStartTimeInput(event);
+        startTimeValue.blur();
+    }
+});
+
+baseFreqValue.addEventListener('blur', handleBaseFreqInput);
+baseFreqValue.addEventListener('keypress', (event) => {
+    if (event.key === 'Enter') {
+        event.preventDefault();
+        handleBaseFreqInput(event);
+        baseFreqValue.blur();
+    }
+});
+
+harmonicsValue.addEventListener('blur', handleHarmonicsInput);
+harmonicsValue.addEventListener('keypress', (event) => {
+    if (event.key === 'Enter') {
+        event.preventDefault();
+        handleHarmonicsInput(event);
+        harmonicsValue.blur();
+    }
+});
+
+// Volume control
+function updateVolume() {
+    const volumePercent = volumeControl.value;
+    volumeValue.textContent = `${volumePercent}%`;
+    currentVolume = volumePercent / 100;
+
+    if (gainNode) {
+        gainNode.gain.value = currentVolume;
+    }
+}
+
 // Functions
 function handleDragOver(e) {
     e.preventDefault();
@@ -204,35 +300,6 @@ async function saveSoundfont() {
         showSuccess(`Soundfont saved as: ${data.filename}`);
     } catch (error) {
         showError(error.message);
-    }
-}
-
-// Parameter update functions
-function updateSamplesValue() {
-    const samples = Math.pow(2, samplesSlider.value);
-    samplesValue.textContent = `${samples} samples`;
-}
-
-function updateStartTimeValue() {
-    startTimeValue.textContent = `${startTimeSlider.value}s`;
-}
-
-function updateBaseFreqValue() {
-    baseFreqValue.textContent = `${baseFreqSlider.value} Hz`;
-}
-
-function updateHarmonicsValue() {
-    harmonicsValue.textContent = `${harmonicsSlider.value} harmonics`;
-}
-
-// Volume control
-function updateVolume() {
-    const volumePercent = volumeControl.value;
-    volumeValue.textContent = `${volumePercent}%`;
-    currentVolume = volumePercent / 100;
-
-    if (gainNode) {
-        gainNode.gain.value = currentVolume;
     }
 }
 
