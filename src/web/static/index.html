@@ -257,7 +257,7 @@
 
     <script>
         // Global variables
-        let uploadedFileId = null;
+        let uploadedFilename = null;
         let availableSoundfonts = [];
         let channelInfo = [];
         let fileExpirationMinutes = 10;
@@ -353,7 +353,7 @@
                     return response.json();
                 })
                 .then(data => {
-                    uploadedFileId = data.file_id;
+                    uploadedFilename = data.filename;
                     fileExpirationMinutes = data.expires_in_minutes || 10;
                     fileRefreshThresholdMinutes = data.refresh_threshold_minutes || 5;
 
@@ -364,7 +364,7 @@
                     startFileRefreshInterval();
 
                     // Load channel information
-                    loadChannelInfo(uploadedFileId);
+                    loadChannelInfo(uploadedFilename);
                 })
                 .catch(error => {
                     showError(error.message);
@@ -378,14 +378,14 @@
             // Clear any existing interval
             stopFileRefreshInterval();
 
-            if (!uploadedFileId) return;
+            if (!uploadedFilename) return;
 
             // Calculate refresh interval (check when 5 minutes are left)
             const checkIntervalMs = (fileExpirationMinutes - fileRefreshThresholdMinutes) * 60 * 1000;
 
             // Set up interval to refresh the file
             fileRefreshIntervalId = setInterval(() => {
-                refreshFile(uploadedFileId);
+                refreshFile(uploadedFilename);
             }, checkIntervalMs);
 
             console.log(`File refresh interval started. Will refresh every ${(fileExpirationMinutes - fileRefreshThresholdMinutes)} minutes.`);
@@ -398,10 +398,10 @@
             }
         }
 
-        function refreshFile(fileId) {
-            if (!fileId) return;
+        function refreshFile(filename) {
+            if (!filename) return;
 
-            console.log(`Refreshing file: ${fileId}`);
+            console.log(`Refreshing file: ${filename}`);
 
             fetch('/refresh-file', {
                 method: 'POST',
@@ -409,7 +409,7 @@
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    file_id: fileId
+                    filename: filename
                 })
             })
                 .then(response => {
@@ -449,13 +449,13 @@
                 });
         }
 
-        function loadChannelInfo(fileId) {
+        function loadChannelInfo(filename) {
             // Reset UI
             channelList.innerHTML = '';
             soundfontLoading.classList.remove('hidden');
             step2.classList.remove('hidden');
 
-            fetch(`/midi-info/${fileId}`)
+            fetch(`/midi-info/${filename}`)
                 .then(response => {
                     if (!response.ok) {
                         return response.text().then(text => {
@@ -546,7 +546,7 @@
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    midi_file_id: uploadedFileId,
+                    filename: uploadedFilename,
                     soundfonts: soundfonts
                 })
             })
