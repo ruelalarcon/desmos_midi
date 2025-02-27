@@ -123,6 +123,30 @@
         .hidden {
             display: none;
         }
+
+        .preview-controls {
+            margin: 15px 0;
+        }
+        #preview-btn {
+            background-color: #e67e22;
+        }
+        #preview-btn:hover {
+            background-color: #d35400;
+        }
+        #preview-btn.playing {
+            background-color: #c0392b;
+        }
+        #preview-status {
+            margin-top: 5px;
+            color: #27ae60;
+            font-style: italic;
+        }
+        .volume-control {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+        }
     </style>
 </head>
 <body>
@@ -164,6 +188,16 @@
 
         <button id="analyze-btn" disabled>Analyze WAV File</button>
         <div id="result-area" class="result-area hidden"></div>
+        <div class="preview-controls">
+            <button id="preview-btn" class="hidden">Toggle Preview Sound</button>
+            <div id="preview-status" class="hidden">Sound is playing</div>
+            <div class="parameter volume-control hidden">
+                <label for="volume">Volume</label>
+                <input type="range" id="volume" min="0" max="100" value="50">
+                <div class="value" id="volume-value">50%</div>
+                <small>Volume does not affect the soundfont, only the preview audio</small>
+            </div>
+        </div>
         <button id="save-btn" class="hidden">Save as Soundfont</button>
     </div>
 

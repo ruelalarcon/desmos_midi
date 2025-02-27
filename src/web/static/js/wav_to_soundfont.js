@@ -8,6 +8,11 @@ const uploadSuccess = document.getElementById('upload-success');
 const analyzeBtn = document.getElementById('analyze-btn');
 const resultArea = document.getElementById('result-area');
 const saveBtn = document.getElementById('save-btn');
+const previewBtn = document.getElementById('preview-btn');
+const previewStatus = document.getElementById('preview-status');
+const volumeControl = document.getElementById('volume');
+const volumeValue = document.getElementById('volume-value');
+const volumeContainer = document.querySelector('.volume-control');
 
 // Parameter elements
 const samplesSlider = document.getElementById('samples');
@@ -19,9 +24,18 @@ const baseFreqValue = document.getElementById('base-freq-value');
 const harmonicsSlider = document.getElementById('harmonics');
 const harmonicsValue = document.getElementById('harmonics-value');
 
+// Audio context and nodes
+let audioContext = null;
+let oscillator = null;
+let gainNode = null;
+const PREVIEW_FREQUENCY = 440; // Fixed A4 note for preview
+
 // State
 let uploadedFilename = null;
 let currentHarmonics = null;
+let isPlaying = false;
+let debounceTimeout = null;
+let currentVolume = 0.5; // Store volume as 0-1 value
 
 // Event listeners
 uploadArea.addEventListener('click', () => fileInput.click());
@@ -29,14 +43,30 @@ uploadArea.addEventListener('dragover', handleDragOver);
 uploadArea.addEventListener('dragleave', handleDragLeave);
 uploadArea.addEventListener('drop', handleDrop);
 fileInput.addEventListener('change', handleFileSelect);
-analyzeBtn.addEventListener('click', analyzeWav);
+analyzeBtn.addEventListener('click', () => analyzeWav(false));
 saveBtn.addEventListener('click', saveSoundfont);
+previewBtn.addEventListener('click', togglePreview);
 
-// Parameter update listeners
-samplesSlider.addEventListener('input', updateSamplesValue);
-startTimeSlider.addEventListener('input', updateStartTimeValue);
-baseFreqSlider.addEventListener('input', updateBaseFreqValue);
-harmonicsSlider.addEventListener('input', updateHarmonicsValue);
+// Parameter update listeners with debounce
+samplesSlider.addEventListener('input', () => {
+    updateSamplesValue();
+    debounceAnalysis();
+});
+startTimeSlider.addEventListener('input', () => {
+    updateStartTimeValue();
+    debounceAnalysis();
+});
+baseFreqSlider.addEventListener('input', () => {
+    updateBaseFreqValue();
+    debounceAnalysis();
+});
+harmonicsSlider.addEventListener('input', () => {
+    updateHarmonicsValue();
+    debounceAnalysis();
+});
+
+// Volume control
+volumeControl.addEventListener('input', updateVolume);
 
 // Functions
 function handleDragOver(e) {
@@ -93,7 +123,19 @@ async function uploadWavFile(file) {
     }
 }
 
-async function analyzeWav() {
+// Debounced analysis function
+function debounceAnalysis() {
+    if (debounceTimeout) {
+        clearTimeout(debounceTimeout);
+    }
+    debounceTimeout = setTimeout(() => {
+        if (uploadedFilename) {
+            analyzeWav(true);
+        }
+    }, 100); // 0.1s debounce
+}
+
+async function analyzeWav(isLiveUpdate = false) {
     if (!uploadedFilename) return;
 
     try {
@@ -117,6 +159,21 @@ async function analyzeWav() {
         resultArea.textContent = currentHarmonics.join(',');
         resultArea.classList.remove('hidden');
         saveBtn.classList.remove('hidden');
+        previewBtn.classList.remove('hidden');
+        volumeContainer.classList.remove('hidden');
+
+        // Update the preview if it's playing
+        if (isPlaying) {
+            // Recreate the oscillator with new harmonics
+            const wasPlaying = isPlaying;
+            stopPreview();
+            if (wasPlaying) {
+                startPreview();
+            }
+        } else if (!isLiveUpdate) {
+            // Start preview automatically on first analysis
+            startPreview();
+        }
     } catch (error) {
         showError(error.message);
     }
@@ -168,6 +225,17 @@ function updateHarmonicsValue() {
     harmonicsValue.textContent = `${harmonicsSlider.value} harmonics`;
 }
 
+// Volume control
+function updateVolume() {
+    const volumePercent = volumeControl.value;
+    volumeValue.textContent = `${volumePercent}%`;
+    currentVolume = volumePercent / 100;
+
+    if (gainNode) {
+        gainNode.gain.value = currentVolume;
+    }
+}
+
 // Helper functions
 function showError(message) {
     uploadError.textContent = message;
@@ -184,8 +252,104 @@ function hideError() {
     uploadSuccess.classList.add('hidden');
 }
 
-// Initialize parameter values
-updateSamplesValue();
-updateStartTimeValue();
-updateBaseFreqValue();
-updateHarmonicsValue();
+// Audio preview functions
+function initAudio() {
+    if (!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
+}
+
+function createOscillator() {
+    if (!audioContext || !currentHarmonics) return;
+
+    // Create nodes
+    oscillator = audioContext.createOscillator();
+    gainNode = audioContext.createGain();
+
+    // Create periodic wave from harmonics
+    const realCoef = new Float32Array(currentHarmonics.length + 1);
+    const imagCoef = new Float32Array(currentHarmonics.length + 1);
+
+    // DC offset should be 0
+    realCoef[0] = 0;
+    imagCoef[0] = 0;
+
+    // Set harmonic coefficients
+    for (let i = 0; i < currentHarmonics.length; i++) {
+        realCoef[i + 1] = currentHarmonics[i];
+        imagCoef[i + 1] = 0; // Using only cosine terms
+    }
+
+    const wave = audioContext.createPeriodicWave(realCoef, imagCoef, {
+        disableNormalization: false
+    });
+
+    // Configure oscillator with fixed preview frequency
+    oscillator.setPeriodicWave(wave);
+    oscillator.frequency.value = PREVIEW_FREQUENCY;
+
+    // Configure gain (volume)
+    gainNode.gain.value = currentVolume;
+
+    // Connect nodes
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+}
+
+function startPreview() {
+    initAudio();
+    createOscillator();
+
+    if (oscillator) {
+        oscillator.start();
+        isPlaying = true;
+        previewBtn.classList.add('playing');
+        previewStatus.classList.remove('hidden');
+    }
+}
+
+function stopPreview() {
+    if (oscillator) {
+        oscillator.stop();
+        oscillator.disconnect();
+        oscillator = null;
+    }
+    if (gainNode) {
+        gainNode.disconnect();
+        gainNode = null;
+    }
+    isPlaying = false;
+    previewBtn.classList.remove('playing');
+    previewStatus.classList.add('hidden');
+}
+
+function togglePreview() {
+    if (isPlaying) {
+        stopPreview();
+    } else {
+        startPreview();
+    }
+}
+
+// Clean up audio context when leaving the page
+window.addEventListener('beforeunload', () => {
+    if (audioContext) {
+        audioContext.close();
+    }
+});
+
+// Initialize parameter values and handle any saved values
+function initializeUI() {
+    // Update display values
+    updateSamplesValue();
+    updateStartTimeValue();
+    updateBaseFreqValue();
+    updateHarmonicsValue();
+    updateVolume();
+
+    // If we have a saved volume value, update the internal state
+    currentVolume = volumeControl.value / 100;
+}
+
+// Call initialization when the page loads
+initializeUI();
