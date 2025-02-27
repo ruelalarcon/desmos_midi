@@ -27,7 +27,6 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 uuid = { version = "1.7", features = ["v4", "serde"] }
 tower = "0.5.2"
 mime = "0.3"
-tempfile = "3.10"
 
 [[bin]]
 name = "desmos_midi"

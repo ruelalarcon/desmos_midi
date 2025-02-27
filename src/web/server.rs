@@ -7,11 +7,13 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use std::{
+    collections::HashMap,
     net::SocketAddr,
     path::{Path as StdPath, PathBuf},
-    sync::Arc,
+    sync::{Arc, Mutex},
+    time::{Duration, Instant},
 };
-use tokio::{fs, io::AsyncWriteExt, net::TcpListener};
+use tokio::{fs, io::AsyncWriteExt, net::TcpListener, task, time};
 use tower_http::{
     services::ServeDir,
     trace::{DefaultMakeSpan, TraceLayer},
@@ -19,11 +21,16 @@ use tower_http::{
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use uuid::Uuid;
 
+// Constants for file expiration
+const FILE_EXPIRATION_MINUTES: u64 = 10;
+const FILE_REFRESH_THRESHOLD_MINUTES: u64 = 5;
+
 // App state
 #[derive(Clone)]
 struct AppState {
-    upload_dir: PathBuf,
+    temp_dir: PathBuf,
     soundfont_dir: PathBuf,
+    file_expirations: Arc<Mutex<HashMap<String, Instant>>>,
 }
 
 // Response for MIDI info
@@ -52,6 +59,12 @@ struct ConversionRequest {
     soundfonts: Vec<String>,
 }
 
+// Request for refreshing file expiration
+#[derive(Deserialize)]
+struct RefreshFileRequest {
+    file_id: String,
+}
+
 #[tokio::main]
 async fn main() {
     // Initialize tracing
@@ -63,10 +76,13 @@ async fn main() {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    // Create upload directory if it doesn't exist
-    let upload_dir = PathBuf::from("uploads");
-    if !upload_dir.exists() {
-        fs::create_dir_all(&upload_dir).await.unwrap();
+    // Create temp directory if it doesn't exist
+    let temp_dir = PathBuf::from("temp");
+    if !temp_dir.exists() {
+        fs::create_dir_all(&temp_dir).await.unwrap();
+    } else {
+        // Clean up existing files on startup
+        clean_temp_directory(&temp_dir).await;
     }
 
     // Get soundfont directory
@@ -75,10 +91,12 @@ async fn main() {
         fs::create_dir_all(&soundfont_dir).await.unwrap();
     }
 
-    // Create app state
+    // Create app state with file expiration tracking
+    let file_expirations = Arc::new(Mutex::new(HashMap::new()));
     let state = Arc::new(AppState {
-        upload_dir,
+        temp_dir,
         soundfont_dir,
+        file_expirations,
     });
 
     // Create static directory if it doesn't exist
@@ -87,6 +105,12 @@ async fn main() {
         fs::create_dir_all(&static_dir).await.unwrap();
     }
 
+    // Start background task for file cleanup
+    let cleanup_state = state.clone();
+    task::spawn(async move {
+        run_file_cleanup(cleanup_state).await;
+    });
+
     // Create router
     let app = Router::new()
         .route("/", get(index_handler))
@@ -94,6 +118,7 @@ async fn main() {
         .route("/midi-info/{file_id}", get(midi_info_handler))
         .route("/convert", post(convert_handler))
         .route("/soundfonts", get(list_soundfonts_handler))
+        .route("/refresh-file", post(refresh_file_handler))
         .nest_service("/static", ServeDir::new(StdPath::new("src/web/static")))
         .with_state(state)
         .layer(
@@ -107,6 +132,66 @@ async fn main() {
 
     let listener = TcpListener::bind(&addr).await.unwrap();
     axum::serve(listener, app).await.unwrap();
+}
+
+// Clean up all files in the temp directory
+async fn clean_temp_directory(temp_dir: &PathBuf) {
+    tracing::info!("Cleaning up temporary files on startup");
+
+    match fs::read_dir(temp_dir).await {
+        Ok(mut entries) => {
+            while let Ok(Some(entry)) = entries.next_entry().await {
+                if let Err(e) = fs::remove_file(entry.path()).await {
+                    tracing::warn!("Failed to remove file {}: {}", entry.path().display(), e);
+                }
+            }
+        }
+        Err(e) => {
+            tracing::error!("Failed to read temp directory: {}", e);
+        }
+    }
+}
+
+// Background task to periodically check for and remove expired files
+async fn run_file_cleanup(state: Arc<AppState>) {
+    let check_interval = Duration::from_secs(60); // Check every minute
+
+    loop {
+        time::sleep(check_interval).await;
+
+        let now = Instant::now();
+        let mut expired_files = Vec::new();
+
+        // Find expired files
+        {
+            let mut expirations = state.file_expirations.lock().unwrap();
+            let expiration_duration = Duration::from_secs(FILE_EXPIRATION_MINUTES * 60);
+
+            expirations.retain(|file_id, expiration_time| {
+                let is_expired = now.duration_since(*expiration_time) >= expiration_duration;
+                if is_expired {
+                    expired_files.push(file_id.clone());
+                    false
+                } else {
+                    true
+                }
+            });
+        }
+
+        // Remove expired files
+        for file_id in expired_files {
+            let file_path = state.temp_dir.join(format!("{}.mid", file_id));
+            if let Err(e) = fs::remove_file(&file_path).await {
+                tracing::warn!(
+                    "Failed to remove expired file {}: {}",
+                    file_path.display(),
+                    e
+                );
+            } else {
+                tracing::info!("Removed expired file: {}", file_id);
+            }
+        }
+    }
 }
 
 // Handler for the index page
@@ -147,7 +232,7 @@ async fn upload_handler(
             }
 
             // Create the file path
-            let path = state.upload_dir.join(format!("{}.mid", file_id));
+            let path = state.temp_dir.join(format!("{}.mid", file_id));
             file_path = Some(path.clone());
 
             // Get the file data
@@ -171,12 +256,22 @@ async fn upload_handler(
                     format!("Failed to write file: {}", e),
                 )
             })?;
+
+            // Set expiration time
+            {
+                let mut expirations = state.file_expirations.lock().unwrap();
+                expirations.insert(file_id.clone(), Instant::now());
+            }
         }
     }
 
     // Return the file ID
     match file_path {
-        Some(_) => Ok(Json(serde_json::json!({ "file_id": file_id }))),
+        Some(_) => Ok(Json(serde_json::json!({
+            "file_id": file_id,
+            "expires_in_minutes": FILE_EXPIRATION_MINUTES,
+            "refresh_threshold_minutes": FILE_REFRESH_THRESHOLD_MINUTES
+        }))),
         None => Err((
             StatusCode::BAD_REQUEST,
             "No MIDI file was uploaded".to_string(),
@@ -190,9 +285,15 @@ async fn midi_info_handler(
     Path(file_id): Path<String>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
     // Check if the file exists
-    let file_path = state.upload_dir.join(format!("{}.mid", file_id));
+    let file_path = state.temp_dir.join(format!("{}.mid", file_id));
     if !file_path.exists() {
         return Err((StatusCode::NOT_FOUND, "MIDI file not found".to_string()));
+    }
+
+    // Refresh the file expiration
+    {
+        let mut expirations = state.file_expirations.lock().unwrap();
+        expirations.insert(file_id, Instant::now());
     }
 
     // Create MIDI processor
@@ -231,11 +332,15 @@ async fn convert_handler(
     Json(request): Json<ConversionRequest>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
     // Check if the file exists
-    let file_path = state
-        .upload_dir
-        .join(format!("{}.mid", request.midi_file_id));
+    let file_path = state.temp_dir.join(format!("{}.mid", request.midi_file_id));
     if !file_path.exists() {
         return Err((StatusCode::NOT_FOUND, "MIDI file not found".to_string()));
+    }
+
+    // Refresh the file expiration
+    {
+        let mut expirations = state.file_expirations.lock().unwrap();
+        expirations.insert(request.midi_file_id, Instant::now());
     }
 
     // Create MIDI processor
@@ -257,6 +362,31 @@ async fn convert_handler(
     let formula = song.to_piecewise_function();
 
     Ok(Json(ConversionResponse { formula }))
+}
+
+// Handler for refreshing file expiration
+async fn refresh_file_handler(
+    State(state): State<Arc<AppState>>,
+    Json(request): Json<RefreshFileRequest>,
+) -> Result<impl IntoResponse, (StatusCode, String)> {
+    // Check if the file exists
+    let file_path = state.temp_dir.join(format!("{}.mid", request.file_id));
+    if !file_path.exists() {
+        return Err((StatusCode::NOT_FOUND, "MIDI file not found".to_string()));
+    }
+
+    // Refresh the file expiration
+    {
+        let mut expirations = state.file_expirations.lock().unwrap();
+        expirations.insert(request.file_id.clone(), Instant::now());
+    }
+
+    Ok(Json(serde_json::json!({
+        "status": "ok",
+        "message": "File expiration refreshed",
+        "file_id": request.file_id,
+        "expires_in_minutes": FILE_EXPIRATION_MINUTES
+    })))
 }
 
 // Handler for listing available soundfonts

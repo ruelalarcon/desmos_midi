@@ -260,6 +260,9 @@
         let uploadedFileId = null;
         let availableSoundfonts = [];
         let channelInfo = [];
+        let fileExpirationMinutes = 10;
+        let fileRefreshThresholdMinutes = 5;
+        let fileRefreshIntervalId = null;
 
         // DOM elements
         const uploadArea = document.getElementById('upload-area');
@@ -329,6 +332,9 @@
             hideError();
             uploadLoading.classList.remove('hidden');
 
+            // Stop any existing file refresh interval
+            stopFileRefreshInterval();
+
             // Create form data
             const formData = new FormData();
             formData.append('midi_file', file);
@@ -348,8 +354,14 @@
                 })
                 .then(data => {
                     uploadedFileId = data.file_id;
+                    fileExpirationMinutes = data.expires_in_minutes || 10;
+                    fileRefreshThresholdMinutes = data.refresh_threshold_minutes || 5;
+
                     uploadSuccess.textContent = `Successfully uploaded: ${file.name}`;
                     uploadSuccess.classList.remove('hidden');
+
+                    // Start file refresh interval
+                    startFileRefreshInterval();
 
                     // Load channel information
                     loadChannelInfo(uploadedFileId);
@@ -359,6 +371,63 @@
                 })
                 .finally(() => {
                     uploadLoading.classList.add('hidden');
+                });
+        }
+
+        function startFileRefreshInterval() {
+            // Clear any existing interval
+            stopFileRefreshInterval();
+
+            if (!uploadedFileId) return;
+
+            // Calculate refresh interval (check when 5 minutes are left)
+            const checkIntervalMs = (fileExpirationMinutes - fileRefreshThresholdMinutes) * 60 * 1000;
+
+            // Set up interval to refresh the file
+            fileRefreshIntervalId = setInterval(() => {
+                refreshFile(uploadedFileId);
+            }, checkIntervalMs);
+
+            console.log(`File refresh interval started. Will refresh every ${(fileExpirationMinutes - fileRefreshThresholdMinutes)} minutes.`);
+        }
+
+        function stopFileRefreshInterval() {
+            if (fileRefreshIntervalId) {
+                clearInterval(fileRefreshIntervalId);
+                fileRefreshIntervalId = null;
+            }
+        }
+
+        function refreshFile(fileId) {
+            if (!fileId) return;
+
+            console.log(`Refreshing file: ${fileId}`);
+
+            fetch('/refresh-file', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    file_id: fileId
+                })
+            })
+                .then(response => {
+                    if (!response.ok) {
+                        console.error('Failed to refresh file');
+                        // If refresh fails, stop trying
+                        stopFileRefreshInterval();
+                        return;
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('File refreshed successfully', data);
+                })
+                .catch(error => {
+                    console.error('Error refreshing file:', error);
+                    // If refresh fails, stop trying
+                    stopFileRefreshInterval();
                 });
         }
 
@@ -523,6 +592,11 @@
             uploadError.classList.add('hidden');
             uploadSuccess.classList.add('hidden');
         }
+
+        // Clean up when the page is unloaded
+        window.addEventListener('beforeunload', () => {
+            stopFileRefreshInterval();
+        });
     </script>
 </body>
 
