@@ -4,9 +4,18 @@ authors = ["Ruel Nathaniel Alarcon"]
 description = "A Rust-based CLI tool for converting MIDI files into formulas for Desmos."
 version = "1.0.1"
 edition = "2021"
+license = "MIT"
+repository = "https://github.com/ruelalarcon/desmos_midi"
+readme = "README.md"
+keywords = ["midi", "desmos", "music", "converter", "cli"]
+categories = ["command-line-utilities", "multimedia"]
 
 [dependencies]
 midly = "0.5"
 clipboard = "0.5"
 clap = { version = "4.5", features = ["derive"] }
 thiserror = "2.0.11"
+
+[[bin]]
+name = "desmos_midi"
+path = "src/main.rs"
