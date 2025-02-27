@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WAV to Soundfont Converter</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .container {
+            background-color: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .upload-area {
+            border: 2px dashed #ccc;
+            border-radius: 5px;
+            padding: 25px;
+            text-align: center;
+            cursor: pointer;
+            margin-bottom: 20px;
+            transition: all 0.3s;
+        }
+
+        .upload-area:hover {
+            border-color: #3498db;
+            background-color: #f8f9fa;
+        }
+
+        .upload-area.highlight {
+            border-color: #3498db;
+            background-color: #edf7fd;
+        }
+
+        .parameters {
+            margin: 20px 0;
+        }
+
+        .parameter {
+            margin-bottom: 15px;
+        }
+
+        .parameter label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        .parameter input[type="range"] {
+            width: 100%;
+        }
+
+        .parameter .value {
+            text-align: right;
+            color: #666;
+        }
+
+        .result-area {
+            background-color: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 15px;
+            margin-top: 20px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            background-color: #2980b9;
+        }
+
+        button:disabled {
+            background-color: #95a5a6;
+            cursor: not-allowed;
+        }
+
+        .error {
+            color: #e74c3c;
+            background-color: #fadbd8;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+
+        .success {
+            color: #27ae60;
+            background-color: #d4efdf;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>WAV to Soundfont Converter</h1>
+
+    <div class="container">
+        <div id="upload-area" class="upload-area">
+            <p>Drag and drop your WAV file here or click to browse</p>
+            <input type="file" id="file-input" accept=".wav" class="hidden">
+        </div>
+        <div id="upload-error" class="error hidden"></div>
+        <div id="upload-success" class="success hidden"></div>
+
+        <div class="parameters">
+            <div class="parameter">
+                <label for="samples">Samples (2^n)</label>
+                <input type="range" id="samples" min="10" max="15" value="12">
+                <div class="value" id="samples-value">4096 samples</div>
+            </div>
+
+            <div class="parameter">
+                <label for="start-time">Start Time (seconds)</label>
+                <input type="range" id="start-time" min="0" max="10" step="0.1" value="0">
+                <div class="value" id="start-time-value">0.0s</div>
+            </div>
+
+            <div class="parameter">
+                <label for="base-freq">Base Frequency (Hz)</label>
+                <input type="range" id="base-freq" min="20" max="2000" step="1" value="440">
+                <div class="value" id="base-freq-value">440 Hz</div>
+            </div>
+
+            <div class="parameter">
+                <label for="sensitivity">Sensitivity</label>
+                <input type="range" id="sensitivity" min="0" max="100" value="50">
+                <div class="value" id="sensitivity-value">50%</div>
+            </div>
+        </div>
+
+        <button id="analyze-btn" disabled>Analyze WAV File</button>
+        <div id="result-area" class="result-area hidden"></div>
+        <button id="save-btn" class="hidden">Save as Soundfont</button>
+    </div>
+
+    <script type="module" src="/static/js/wav_to_soundfont.js"></script>
+</body>
+</html> 

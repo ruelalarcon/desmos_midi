@@ -1,5 +1,5 @@
 use axum::{
-    extract::{Multipart, Path, State},
+    extract::{Multipart, Path, Query, State},
     http::{header, StatusCode},
     response::{Html, IntoResponse, Json, Response},
     routing::{get, post},
@@ -64,6 +64,23 @@ struct ConversionRequest {
 #[derive(Deserialize)]
 struct RefreshFileRequest {
     filename: String,
+}
+
+// Response for harmonic analysis
+#[derive(Serialize)]
+struct HarmonicResponse {
+    harmonics: Vec<f32>,
+}
+
+// Query parameters for harmonic analysis
+#[derive(Deserialize)]
+struct HarmonicParams {
+    samples: Option<usize>,
+    #[serde(rename = "startTime")]
+    start_time: Option<f32>,
+    #[serde(rename = "baseFreq")]
+    base_freq: Option<f32>,
+    sensitivity: Option<u32>,
 }
 
 #[tokio::main]
@@ -142,6 +159,8 @@ async fn main() {
         .route("/soundfonts", get(list_soundfonts_handler))
         .route("/refresh-file", post(refresh_file_handler))
         .route("/getfile/{filename}", get(get_file_handler))
+        .route("/save-soundfont/{filename}", post(save_soundfont_handler))
+        .route("/harmonic-info/{filename}", get(harmonic_info_handler))
         .nest_service("/static", ServeDir::new(StdPath::new("src/web/static")))
         .with_state(state)
         .layer(
@@ -259,15 +278,7 @@ async fn upload_handler(
             let file_name = field
                 .file_name()
                 .map(|s| s.to_string())
-                .unwrap_or_else(|| "unknown.mid".to_string());
-
-            // Only accept MIDI files
-            if !file_name.ends_with(".mid") && !file_name.ends_with(".midi") {
-                return Err((
-                    StatusCode::BAD_REQUEST,
-                    "Only MIDI files (.mid, .midi) are accepted".to_string(),
-                ));
-            }
+                .unwrap_or_else(|| "unknown.file".to_string());
 
             // Use the original filename directly
             original_filename = file_name;
@@ -515,4 +526,72 @@ async fn list_soundfonts_handler(
     }
 
     Ok(Json(serde_json::json!({ "soundfonts": soundfonts })))
+}
+
+// Handler for saving soundfonts
+async fn save_soundfont_handler(
+    Path(filename): Path<String>,
+    State(state): State<Arc<AppState>>,
+    Json(soundfont): Json<Vec<f32>>,
+) -> Result<Response, (StatusCode, String)> {
+    // Ensure filename has .txt extension
+    let filename = if !filename.ends_with(".txt") {
+        format!("{}.txt", filename)
+    } else {
+        filename
+    };
+
+    // Create the file path
+    let file_path = state.soundfont_dir.join(&filename);
+
+    // Convert soundfont weights to string
+    let content = soundfont
+        .iter()
+        .map(|x| x.to_string())
+        .collect::<Vec<_>>()
+        .join(",");
+
+    // Write to file
+    fs::write(&file_path, content).await.map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to write soundfont file: {}", e),
+        )
+    })?;
+
+    let json = serde_json::json!({
+        "status": "ok",
+        "message": "Soundfont saved successfully",
+        "filename": filename
+    });
+
+    Ok(Response::builder()
+        .header("Content-Type", "application/json")
+        .body(axum::body::Body::from(json.to_string()))
+        .unwrap())
+}
+
+// Handler for analyzing WAV files
+async fn harmonic_info_handler(
+    State(state): State<Arc<AppState>>,
+    Path(filename): Path<String>,
+    Query(params): Query<HarmonicParams>,
+) -> Result<Json<HarmonicResponse>, (StatusCode, String)> {
+    // Check if the file exists
+    let file_path = state.temp_dir.join(&filename);
+    if !file_path.exists() {
+        return Err((StatusCode::NOT_FOUND, "WAV file not found".to_string()));
+    }
+
+    // Get parameters with defaults
+    let _samples = params.samples.unwrap_or(4096);
+    let _start_time = params.start_time.unwrap_or(0.0);
+    let _base_freq = params.base_freq.unwrap_or(440.0);
+    let _sensitivity = params.sensitivity.unwrap_or(50);
+
+    // TODO: Implement WAV analysis
+    // For now, return dummy data
+    let harmonics = vec![1.0, 0.5, 0.25, 0.125];
+
+    Ok(Json(HarmonicResponse { harmonics }))
 }
