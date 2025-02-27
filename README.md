@@ -51,12 +51,7 @@ To clean build artifacts at any time, you can use:
 
 ## Web Interface
 
-For a user-friendly experience, you can use the web interface:
-
-```bash
-./webui.bat  # Windows
-./webui.sh   # Linux/Mac
-```
+For a user-friendly experience, you can use the web interface by opening the `webui.bat` on Windows, or `webui.sh` on Linux/Mac.
 
 This will start a local web server at `http://localhost:8573` where you can:
 1. Upload MIDI files
