@@ -49,6 +49,22 @@ To clean build artifacts at any time, you can use:
 ./clean.sh   # Linux/Mac
 ```
 
+## Web Interface
+
+For a user-friendly experience, you can use the web interface:
+
+```bash
+./webui.bat  # Windows
+./webui.sh   # Linux/Mac
+```
+
+This will start a local web server at `http://localhost:3000` where you can:
+1. Upload MIDI files
+2. View channel information
+3. Configure soundfonts for each channel
+4. Convert to Desmos formula
+5. Copy the formula to clipboard
+
 ## Usage
 
 Navigate to [this Desmos graph](https://www.desmos.com/calculator/1rzq4xa5v0).
@@ -57,38 +73,16 @@ Navigate to [this Desmos graph](https://www.desmos.com/calculator/1rzq4xa5v0).
 
 **Basic Usage:**
 ```bash
-./run.bat <midi_file>  # Windows
-./run.sh <midi_file>   # Linux/Mac
+./convert.bat <midi_file>  # Windows
+./convert.sh <midi_file>   # Linux/Mac
 ```
 > Note: From now on, we will use `.sh` for the rest of the examples, but if you are on Windows make sure to use the `.bat` versions instead.
 
 **Advanced Usage:**
 ```bash
-./run.sh <midi_file> -s <soundfont1> <soundfont2> ...  # Specify soundfonts for each channel
-./run.sh <midi_file> -i                                # Show channel information
+./convert.sh <midi_file> -s <soundfont1> <soundfont2> ...  # Specify soundfonts for each channel
+./convert.sh <midi_file> -i                                # Show channel information
 ```
-
-### Web Interface
-
-For a more user-friendly experience, you can use the web interface:
-
-```bash
-./run_web.bat  # Windows
-./run_web.sh   # Linux/Mac
-```
-
-This will start a local web server at http://localhost:3000 where you can:
-1. Upload MIDI files
-2. View channel information
-3. Configure soundfonts for each channel
-4. Convert to Desmos formula
-5. Copy the formula to clipboard
-
-The web interface is designed to be intuitive and provides a step-by-step workflow:
-
-1. **Upload MIDI File**: Drag and drop or select a MIDI file
-2. **Configure Soundfonts**: Choose soundfonts for each MIDI channel
-3. **Get Desmos Formula**: Convert and copy the formula to use in Desmos
 
 ### Arguments (CLI)
 - `<midi_file>`: Path to the input MIDI file to convert
@@ -108,17 +102,17 @@ By default:
 
 1. Basic conversion with default settings (drums ignored):
 ```bash
-./run.sh song.mid
+./convert.sh song.mid
 ```
 
 2. View channel information:
 ```bash
-./run.sh song.mid -i
+./convert.sh song.mid -i
 ```
 
 3. Specify custom soundfonts:
 ```bash
-./run.sh song.mid -s default sine - default
+./convert.sh song.mid -s default sine - default
 ```
 This will use:
 - `default.txt` for channel 1
@@ -128,7 +122,7 @@ This will use:
 
 4. Copy to clipboard instead of console output:
 ```bash
-./run.sh song.mid -c
+./convert.sh song.mid -c
 ```
 
 Now enable audio in Desmos through the button in the top left:

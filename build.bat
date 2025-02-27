@@ -13,4 +13,4 @@ if !ERRORLEVEL! neq 0 (
     exit /b 1
 )
 
-echo Build completed successfully! You can now use './run.bat' or to run the program.
+echo Build completed successfully! You can now use './convert.bat' or './webui.bat' to run the program.
