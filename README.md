@@ -53,7 +53,7 @@ To clean build artifacts at any time, you can use:
 
 Navigate to [this Desmos graph](https://www.desmos.com/calculator/1rzq4xa5v0).
 
-Once you have a MIDI file you wish to use, run the following command:
+### Command Line Interface
 
 **Basic Usage:**
 ```bash
@@ -68,7 +68,29 @@ Once you have a MIDI file you wish to use, run the following command:
 ./run.sh <midi_file> -i                                # Show channel information
 ```
 
-### Arguments
+### Web Interface
+
+For a more user-friendly experience, you can use the web interface:
+
+```bash
+./run_web.bat  # Windows
+./run_web.sh   # Linux/Mac
+```
+
+This will start a local web server at http://localhost:3000 where you can:
+1. Upload MIDI files
+2. View channel information
+3. Configure soundfonts for each channel
+4. Convert to Desmos formula
+5. Copy the formula to clipboard
+
+The web interface is designed to be intuitive and provides a step-by-step workflow:
+
+1. **Upload MIDI File**: Drag and drop or select a MIDI file
+2. **Configure Soundfonts**: Choose soundfonts for each MIDI channel
+3. **Get Desmos Formula**: Convert and copy the formula to use in Desmos
+
+### Arguments (CLI)
 - `<midi_file>`: Path to the input MIDI file to convert
 - `-s, --soundfonts <FILES>`: Soundfont files to use for each channel (optional)
 - `-i, --info`: Show MIDI channel information and exit
@@ -168,11 +190,25 @@ Now enable audio in Desmos through the button in the top left:
    - Soundfonts are stored in the `soundfonts/` directory and are text files containing comma-separated floating point values representing harmonic weights (weights for each frequency in the harmonic series, which can be used to generate a static waveform)
    - The `B` is a "list of lists" of harmonic weights, however, Desmos does not support nested lists so instead, the `C` value is the maximum size of the soundfont arrays (after padding) and we use that to index sublists in `B`
 
+### Web Interface
+
+The web interface is built using:
+- **Backend**: Axum web framework (Rust)
+- **Frontend**: HTML, CSS, and JavaScript
+- **Features**:
+  - File upload with drag-and-drop support
+  - Dynamic soundfont selection
+  - Real-time MIDI channel information
+  - One-click formula copying
+
 ## Dependencies
 
 - `midly`: MIDI file parsing
 - `clipboard`: System clipboard integration
 - `clap`: Command line argument parsing
+- `axum`: Web server framework
+- `tokio`: Asynchronous runtime
+- `tower-http`: HTTP components for Tower
 
 ## Credits
 

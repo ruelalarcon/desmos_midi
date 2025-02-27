@@ -16,6 +16,23 @@ clipboard = "0.5"
 clap = { version = "4.5", features = ["derive"] }
 thiserror = "2.0.11"
 
+# Web server dependencies
+axum = { version = "0.8.1", features = ["multipart"] }
+tokio = { version = "1.36", features = ["full"] }
+tower-http = { version = "0.6.2", features = ["fs", "trace"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+uuid = { version = "1.7", features = ["v4", "serde"] }
+tower = "0.5.2"
+mime = "0.3"
+tempfile = "3.10"
+
 [[bin]]
 name = "desmos_midi"
 path = "src/main.rs"
+
+[[bin]]
+name = "desmos_midi_web"
+path = "src/web/main.rs"
