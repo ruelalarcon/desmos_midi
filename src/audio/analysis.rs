@@ -117,5 +117,11 @@ fn extract_harmonic_weights(
         }
     }
 
+    // Apply boost factor
+    harmonics.iter_mut().for_each(|x| *x *= config.boost);
+
+    // Round to 5 decimal places
+    harmonics.iter_mut().for_each(|x| *x = (*x * 100000.0).round() / 100000.0);
+
     Ok(harmonics)
 }

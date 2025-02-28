@@ -20,6 +20,8 @@ pub struct AnalysisConfig {
     pub base_freq: f32,
     /// Number of harmonics to extract
     pub num_harmonics: usize,
+    /// Boost factor for the output (multiplies the final amplitudes)
+    pub boost: f32,
 }
 
 /// Errors that can occur during audio processing

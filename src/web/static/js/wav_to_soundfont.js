@@ -25,6 +25,8 @@ const baseFreqSlider = document.getElementById('base-freq');
 const baseFreqValue = document.getElementById('base-freq-value');
 const harmonicsSlider = document.getElementById('harmonics');
 const harmonicsValue = document.getElementById('harmonics-value');
+const boostSlider = document.getElementById('boost');
+const boostValue = document.getElementById('boost-value');
 
 // Audio context and nodes
 let audioContext = null;
@@ -63,6 +65,10 @@ harmonicsSlider.addEventListener('input', () => {
     updateHarmonicsValue();
     debounceAnalysis();
 });
+boostSlider.addEventListener('input', () => {
+    updateBoostValue();
+    debounceAnalysis();
+});
 
 // Volume control
 volumeControl.addEventListener('input', updateVolume);
@@ -83,6 +89,10 @@ function updateBaseFreqValue() {
 
 function updateHarmonicsValue() {
     harmonicsValue.value = harmonicsSlider.value;
+}
+
+function updateBoostValue() {
+    boostValue.value = parseFloat(boostSlider.value).toFixed(1);
 }
 
 function handleStartTimeInput(event) {
@@ -112,16 +122,21 @@ function handleBaseFreqInput(event) {
 }
 
 function handleHarmonicsInput(event) {
-    let value = parseInt(event.target.value);
-    if (isNaN(value)) {
-        value = parseInt(harmonicsSlider.value);
-    } else {
-        // Clamp value between min and max
-        value = Math.max(harmonicsSlider.min, Math.min(harmonicsSlider.max, value));
+    const value = parseInt(event.target.value);
+    if (!isNaN(value) && value >= 1 && value <= 64) {
+        harmonicsSlider.value = value;
+        updateHarmonicsValue();
+        debounceAnalysis();
     }
-    harmonicsSlider.value = value;
-    updateHarmonicsValue();
-    debounceAnalysis();
+}
+
+function handleBoostInput(event) {
+    const value = parseFloat(event.target.value);
+    if (!isNaN(value) && value >= 0.5 && value <= 2.0) {
+        boostSlider.value = value;
+        updateBoostValue();
+        debounceAnalysis();
+    }
 }
 
 // Add event listeners for input fields
@@ -149,6 +164,15 @@ harmonicsValue.addEventListener('keypress', (event) => {
         event.preventDefault();
         handleHarmonicsInput(event);
         harmonicsValue.blur();
+    }
+});
+
+boostValue.addEventListener('blur', handleBoostInput);
+boostValue.addEventListener('keypress', (event) => {
+    if (event.key === 'Enter') {
+        event.preventDefault();
+        handleBoostInput(event);
+        boostValue.blur();
     }
 });
 
@@ -214,7 +238,7 @@ async function uploadWavFile(file) {
 
         uploadSuccess.textContent = `Successfully uploaded: ${file.name}`;
         uploadSuccess.classList.remove('hidden');
-        
+
         // Show parameters section and analyze immediately
         parametersSection.classList.remove('hidden');
         analyzeWav(false);
@@ -248,9 +272,18 @@ async function analyzeWav(isLiveUpdate = false) {
         const startTime = parseFloat(startTimeSlider.value);
         const baseFreq = parseInt(baseFreqSlider.value);
         const harmonics = parseInt(harmonicsSlider.value);
+        const boost = parseFloat(boostSlider.value);
+
+        const params = new URLSearchParams({
+            samples: samples,
+            startTime: startTime,
+            baseFreq: baseFreq,
+            harmonics: harmonics,
+            boost: boost
+        });
 
         // Call the harmonic-info endpoint
-        const response = await fetch(`/harmonic-info/${uploadedFilename}?samples=${samples}&startTime=${startTime}&baseFreq=${baseFreq}&harmonics=${harmonics}`);
+        const response = await fetch(`/harmonic-info/${uploadedFilename}?${params.toString()}`);
 
         const text = await response.text();
         if (!response.ok) {
@@ -431,11 +464,40 @@ window.addEventListener('beforeunload', () => {
 
 // Initialize parameter values and handle any saved values
 function initializeUI() {
-    // Update display values
+    // Initialize all range inputs
+    samplesSlider.addEventListener('input', () => {
+        updateSamplesValue();
+        debounceAnalysis();
+    });
+    startTimeSlider.addEventListener('input', () => {
+        updateStartTimeValue();
+        debounceAnalysis();
+    });
+    baseFreqSlider.addEventListener('input', () => {
+        updateBaseFreqValue();
+        debounceAnalysis();
+    });
+    harmonicsSlider.addEventListener('input', () => {
+        updateHarmonicsValue();
+        debounceAnalysis();
+    });
+    boostSlider.addEventListener('input', () => {
+        updateBoostValue();
+        debounceAnalysis();
+    });
+
+    // Initialize value input handlers
+    startTimeValue.addEventListener('input', handleStartTimeInput);
+    baseFreqValue.addEventListener('input', handleBaseFreqInput);
+    harmonicsValue.addEventListener('input', handleHarmonicsInput);
+    boostValue.addEventListener('input', handleBoostInput);
+
+    // Initial value updates
     updateSamplesValue();
     updateStartTimeValue();
     updateBaseFreqValue();
     updateHarmonicsValue();
+    updateBoostValue();
     updateVolume();
 
     // If we have a saved volume value, update the internal state

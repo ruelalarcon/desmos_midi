@@ -48,6 +48,8 @@ struct AnalysisLimits {
     max_base_freq: f32,
     min_harmonics: usize,
     max_harmonics: usize,
+    min_boost: f32,
+    max_boost: f32,
 }
 
 // Constants
@@ -109,6 +111,7 @@ struct HarmonicParams {
     #[serde(rename = "baseFreq")]
     base_freq: Option<f32>,
     harmonics: Option<usize>,
+    boost: Option<f32>,
 }
 
 #[tokio::main]
@@ -139,6 +142,8 @@ async fn main() {
                     max_base_freq: 20000.0,
                     min_harmonics: 1,
                     max_harmonics: 128,
+                    min_boost: 0.5,
+                    max_boost: 2.0,
                 },
             },
         }
@@ -648,6 +653,36 @@ async fn harmonic_info_handler(
     Path(filename): Path<String>,
     Query(params): Query<HarmonicParams>,
 ) -> Result<Json<HarmonicResponse>, (StatusCode, String)> {
+    let config = Arc::clone(&state.config);
+    let limits = &config.limits;
+
+    // Get parameters with defaults and limits
+    let samples = params.samples.unwrap_or(8192).clamp(limits.min_samples, limits.max_samples);
+    let start_time = params
+        .start_time
+        .unwrap_or(0.0)
+        .clamp(limits.min_start_time, limits.max_start_time);
+    let base_freq = params
+        .base_freq
+        .unwrap_or(440.0)
+        .clamp(limits.min_base_freq, limits.max_base_freq);
+    let harmonics = params
+        .harmonics
+        .unwrap_or(16)
+        .clamp(limits.min_harmonics, limits.max_harmonics);
+    let boost = params
+        .boost
+        .unwrap_or(1.0)
+        .clamp(limits.min_boost, limits.max_boost);
+
+    let analysis_config = AnalysisConfig {
+        samples,
+        start_time,
+        base_freq,
+        num_harmonics: harmonics,
+        boost,
+    };
+
     // Check if the file exists
     let file_path = state.temp_dir.join(&filename);
     if !file_path.exists() {
@@ -667,26 +702,7 @@ async fn harmonic_info_handler(
         ),
     })?;
 
-    let config = AnalysisConfig {
-        samples: params.samples.unwrap_or(4096).clamp(
-            state.config.limits.min_samples,
-            state.config.limits.max_samples,
-        ),
-        start_time: params.start_time.unwrap_or(0.0).clamp(
-            state.config.limits.min_start_time,
-            state.config.limits.max_start_time,
-        ),
-        base_freq: params.base_freq.unwrap_or(440.0).clamp(
-            state.config.limits.min_base_freq,
-            state.config.limits.max_base_freq,
-        ),
-        num_harmonics: params.harmonics.unwrap_or(16).clamp(
-            state.config.limits.min_harmonics,
-            state.config.limits.max_harmonics,
-        ),
-    };
-
-    let harmonics = analyze_harmonics(&wav_data, &config).map_err(|e| match e {
+    let harmonics = analyze_harmonics(&wav_data, &analysis_config).map_err(|e| match e {
         AudioError::InvalidParams(msg) => (StatusCode::BAD_REQUEST, msg),
         AudioError::ProcessingError(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
         _ => (
