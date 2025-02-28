@@ -5,7 +5,9 @@ const uploadArea = document.getElementById('upload-area');
 const fileInput = document.getElementById('file-input');
 const uploadError = document.getElementById('upload-error');
 const uploadSuccess = document.getElementById('upload-success');
-const analyzeBtn = document.getElementById('analyze-btn');
+const uploadLoading = document.getElementById('upload-loading');
+const parametersSection = document.getElementById('parameters-section');
+const resultSection = document.getElementById('result-section');
 const resultArea = document.getElementById('result-area');
 const saveBtn = document.getElementById('save-btn');
 const previewBtn = document.getElementById('preview-btn');
@@ -43,9 +45,6 @@ uploadArea.addEventListener('dragover', handleDragOver);
 uploadArea.addEventListener('dragleave', handleDragLeave);
 uploadArea.addEventListener('drop', handleDrop);
 fileInput.addEventListener('change', handleFileSelect);
-analyzeBtn.addEventListener('click', () => analyzeWav(false));
-saveBtn.addEventListener('click', saveSoundfont);
-previewBtn.addEventListener('click', togglePreview);
 
 // Parameter update listeners with debounce
 samplesSlider.addEventListener('input', () => {
@@ -202,9 +201,11 @@ function handleFileSelect() {
 async function uploadWavFile(file) {
     // Reset UI
     hideError();
-    analyzeBtn.disabled = true;
+    uploadLoading.classList.remove('hidden');
+    resultSection.classList.add('hidden');
+    previewBtn.classList.add('hidden');
+    volumeContainer.classList.add('hidden');
     saveBtn.classList.add('hidden');
-    resultArea.classList.add('hidden');
 
     try {
         // Upload the file using the file manager
@@ -213,9 +214,14 @@ async function uploadWavFile(file) {
 
         uploadSuccess.textContent = `Successfully uploaded: ${file.name}`;
         uploadSuccess.classList.remove('hidden');
-        analyzeBtn.disabled = false;
+        
+        // Show parameters section and analyze immediately
+        parametersSection.classList.remove('hidden');
+        analyzeWav(false);
     } catch (error) {
         showError(error.message);
+    } finally {
+        uploadLoading.classList.add('hidden');
     }
 }
 
@@ -253,10 +259,10 @@ async function analyzeWav(isLiveUpdate = false) {
 
         // Display results
         resultArea.textContent = currentHarmonics.join(',');
-        resultArea.classList.remove('hidden');
-        saveBtn.classList.remove('hidden');
+        resultSection.classList.remove('hidden');
         previewBtn.classList.remove('hidden');
         volumeContainer.classList.remove('hidden');
+        saveBtn.classList.remove('hidden');
 
         // Update the preview if it's playing
         if (isPlaying) {
@@ -416,6 +422,10 @@ function initializeUI() {
 
     // If we have a saved volume value, update the internal state
     currentVolume = volumeControl.value / 100;
+
+    // Add click handler for preview button
+    previewBtn.addEventListener('click', togglePreview);
+    saveBtn.addEventListener('click', saveSoundfont);
 }
 
 // Call initialization when the page loads
