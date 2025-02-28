@@ -241,6 +241,8 @@ async function analyzeWav(isLiveUpdate = false) {
     if (!uploadedFilename) return;
 
     try {
+        hideMessages(); // Clear any existing messages
+
         // Get parameters
         const samples = Math.pow(2, samplesSlider.value);
         const startTime = parseFloat(startTimeSlider.value);
@@ -250,11 +252,12 @@ async function analyzeWav(isLiveUpdate = false) {
         // Call the harmonic-info endpoint
         const response = await fetch(`/harmonic-info/${uploadedFilename}?samples=${samples}&startTime=${startTime}&baseFreq=${baseFreq}&harmonics=${harmonics}`);
 
+        const text = await response.text();
         if (!response.ok) {
-            throw new Error(await response.text());
+            throw new Error(text);
         }
 
-        const data = await response.json();
+        const data = JSON.parse(text);
         currentHarmonics = data.harmonics;
 
         // Display results
@@ -285,6 +288,8 @@ async function saveSoundfont() {
     if (!currentHarmonics) return;
 
     try {
+        hideMessages(); // Clear any existing messages
+
         // Get a name for the soundfont
         const name = prompt('Enter a name for the soundfont:', 'custom');
         if (!name) return;
@@ -298,11 +303,12 @@ async function saveSoundfont() {
             body: JSON.stringify(currentHarmonics)
         });
 
+        const text = await response.text();
         if (!response.ok) {
-            throw new Error(await response.text());
+            throw new Error(text);
         }
 
-        const data = await response.json();
+        const data = JSON.parse(text);
         showSuccess(`Soundfont saved as: ${data.filename}`);
     } catch (error) {
         showError(error.message);
@@ -311,18 +317,30 @@ async function saveSoundfont() {
 
 // Helper functions
 function showError(message) {
-    uploadError.textContent = message;
-    uploadError.classList.remove('hidden');
+    const errorElement = document.getElementById('analysis-error');
+    errorElement.textContent = message;
+    errorElement.classList.remove('hidden');
+    document.getElementById('analysis-success').classList.add('hidden');
 }
 
 function showSuccess(message) {
-    uploadSuccess.textContent = message;
-    uploadSuccess.classList.remove('hidden');
+    const successElement = document.getElementById('analysis-success');
+    successElement.textContent = message;
+    successElement.classList.remove('hidden');
+    document.getElementById('analysis-error').classList.add('hidden');
 }
 
 function hideError() {
-    uploadError.classList.add('hidden');
-    uploadSuccess.classList.add('hidden');
+    document.getElementById('analysis-error').classList.add('hidden');
+}
+
+function hideSuccess() {
+    document.getElementById('analysis-success').classList.add('hidden');
+}
+
+function hideMessages() {
+    hideError();
+    hideSuccess();
 }
 
 // Audio preview functions

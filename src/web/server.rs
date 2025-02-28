@@ -1,3 +1,4 @@
+use desmos_midi::audio::{analyze_harmonics, read_wav_file, AnalysisConfig, AudioError};
 use axum::{
     extract::{Multipart, Path, Query, State},
     http::{header, StatusCode},
@@ -653,30 +654,46 @@ async fn harmonic_info_handler(
         return Err((StatusCode::NOT_FOUND, "WAV file not found".to_string()));
     }
 
-    // Get parameters with defaults and apply limits
-    let _psamples = params.samples.unwrap_or(4096).clamp(
-        state.config.limits.min_samples,
-        state.config.limits.max_samples,
-    );
+    // Read and analyze the WAV file
+    let wav_data = read_wav_file(&file_path).map_err(|e| match e {
+        AudioError::Io(io_err) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to read WAV file: {}", io_err),
+        ),
+        AudioError::WavParse(msg) => (StatusCode::BAD_REQUEST, format!("Invalid WAV file: {}", msg)),
+        _ => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Error reading WAV file: {}", e),
+        ),
+    })?;
 
-    let _pstart_time = params.start_time.unwrap_or(0.0).clamp(
-        state.config.limits.min_start_time,
-        state.config.limits.max_start_time,
-    );
+    let config = AnalysisConfig {
+        samples: params.samples.unwrap_or(4096).clamp(
+            state.config.limits.min_samples,
+            state.config.limits.max_samples,
+        ),
+        start_time: params.start_time.unwrap_or(0.0).clamp(
+            state.config.limits.min_start_time,
+            state.config.limits.max_start_time,
+        ),
+        base_freq: params.base_freq.unwrap_or(440.0).clamp(
+            state.config.limits.min_base_freq,
+            state.config.limits.max_base_freq,
+        ),
+        num_harmonics: params.harmonics.unwrap_or(16).clamp(
+            state.config.limits.min_harmonics,
+            state.config.limits.max_harmonics,
+        ),
+    };
 
-    let _pbase_freq = params.base_freq.unwrap_or(440.0).clamp(
-        state.config.limits.min_base_freq,
-        state.config.limits.max_base_freq,
-    );
-
-    let pharmonics = params.harmonics.unwrap_or(16).clamp(
-        state.config.limits.min_harmonics,
-        state.config.limits.max_harmonics,
-    );
-
-    // TODO: Implement WAV analysis
-    // For now, return dummy data with the requested number of harmonics
-    let harmonics: Vec<f32> = (0..pharmonics).map(|i| 1.0 / (i + 1) as f32).collect();
+    let harmonics = analyze_harmonics(&wav_data, &config).map_err(|e| match e {
+        AudioError::InvalidParams(msg) => (StatusCode::BAD_REQUEST, msg),
+        AudioError::ProcessingError(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
+        _ => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Error analyzing WAV file: {}", e),
+        ),
+    })?;
 
     Ok(Json(HarmonicResponse { harmonics }))
 }
