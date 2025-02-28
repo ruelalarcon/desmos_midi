@@ -34,14 +34,20 @@ Then build the project using the provided script:
 
 **Windows:**
 ```bash
-./build.bat
+./build.bat              # Build both CLI and Web UI
+./build.bat --cli-only   # Build only the CLI
+./build.bat --web-only   # Build only the Web UI
 ```
 
 **Linux/Mac:**
 ```bash
-./build.sh
+./build.sh              # Build both CLI and Web UI
+./build.sh --cli-only   # Build only the CLI
+./build.sh --web-only   # Build only the Web UI
 ```
 > Note: You may need to run `chmod +x *.sh` first to make the scripts executable if they aren't by default.
+
+The CLI version has minimal dependencies and is quick to build. The Web UI version includes additional dependencies for the web server and interface.
 
 To clean build artifacts at any time, you can use:
 ```bash
