@@ -106,7 +106,7 @@ fn extract_harmonic_weights(
             0.0
         };
 
-        let interpolated_magnitude = beta - 0.25 * (alpha - gamma) * p;
+        let interpolated_magnitude = (beta - 0.25 * (alpha - gamma) * p).abs();
         harmonics.push(interpolated_magnitude);
     }
 
