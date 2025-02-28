@@ -1,4 +1,4 @@
-import * as fileManager from './modules/fileManager.js';
+import * as FileManager from './modules/FileManager.js';
 
 // DOM elements
 const uploadArea = document.getElementById('upload-area');
@@ -208,7 +208,7 @@ async function uploadWavFile(file) {
 
     try {
         // Upload the file using the file manager
-        const data = await fileManager.uploadFile(file);
+        const data = await FileManager.uploadFile(file);
         uploadedFilename = data.filename;
 
         uploadSuccess.textContent = `Successfully uploaded: ${file.name}`;
