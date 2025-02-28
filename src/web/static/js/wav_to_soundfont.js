@@ -96,16 +96,23 @@ function updateBoostValue() {
 }
 
 function handleStartTimeInput(event) {
-    let value = parseFloat(event.target.value);
-    if (isNaN(value)) {
-        value = parseFloat(startTimeSlider.value);
-    } else {
-        // Clamp value between min and max
-        value = Math.max(startTimeSlider.min, Math.min(startTimeSlider.max, value));
+    if (event.type === 'blur' || (event.type === 'keypress' && event.key === 'Enter')) {
+        let value = parseFloat(event.target.value);
+        if (isNaN(value)) {
+            value = parseFloat(startTimeSlider.value);
+        } else {
+            // Clamp value between min and max
+            value = Math.max(startTimeSlider.min, Math.min(startTimeSlider.max, value));
+        }
+        startTimeSlider.value = value;
+        updateStartTimeValue();
+        debounceAnalysis();
+
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            startTimeValue.blur();
+        }
     }
-    startTimeSlider.value = value;
-    updateStartTimeValue();
-    debounceAnalysis();
 }
 
 function handleBaseFreqInput(event) {
@@ -141,13 +148,7 @@ function handleBoostInput(event) {
 
 // Add event listeners for input fields
 startTimeValue.addEventListener('blur', handleStartTimeInput);
-startTimeValue.addEventListener('keypress', (event) => {
-    if (event.key === 'Enter') {
-        event.preventDefault();
-        handleStartTimeInput(event);
-        startTimeValue.blur();
-    }
-});
+startTimeValue.addEventListener('keypress', handleStartTimeInput);
 
 baseFreqValue.addEventListener('blur', handleBaseFreqInput);
 baseFreqValue.addEventListener('keypress', (event) => {
@@ -510,3 +511,49 @@ function initializeUI() {
 
 // Call initialization when the page loads
 initializeUI();
+
+// Note control
+function updateNote() {
+    const semitones = parseInt(noteControl.value);
+    currentPreviewFrequency = noteToFrequency(semitones);
+    noteValue.value = getNoteName(semitones);
+
+    if (oscillator) {
+        oscillator.frequency.setValueAtTime(currentPreviewFrequency, audioContext.currentTime);
+    }
+}
+
+function commitNoteInput() {
+    const input = noteValue.value.toUpperCase();
+    const match = input.match(/^([A-G]#?)(-?\d+)$/);
+
+    if (match) {
+        const [, note, octave] = match;
+        const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+        const noteIndex = noteNames.indexOf(note);
+
+        if (noteIndex !== -1) {
+            const octaveDiff = parseInt(octave) - 4;
+            const semitones = (noteIndex - 9) + (octaveDiff * 12);
+
+            if (semitones >= -24 && semitones <= 24) {
+                noteControl.value = semitones;
+                updateNote();
+                return;
+            }
+        }
+    }
+
+    // If invalid input, reset to current slider value
+    updateNote();
+}
+
+noteControl.addEventListener('input', updateNote);
+noteValue.addEventListener('blur', commitNoteInput);
+noteValue.addEventListener('keypress', (event) => {
+    if (event.key === 'Enter') {
+        event.preventDefault();
+        commitNoteInput();
+        noteValue.blur();
+    }
+});
