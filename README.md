@@ -55,7 +55,9 @@ To clean build artifacts at any time, you can use:
 ./clean.sh   # Linux/Mac
 ```
 
-## Web Interface
+## Usage
+
+### Web Interface
 
 For a user-friendly experience, you can use the web interface by running `webui.bat` on Windows, or `webui.sh` on Linux/Mac.
 
@@ -80,11 +82,34 @@ You can also specify a custom port:
 ./webui.sh --port 9000   # Linux/Mac
 ```
 
-## Usage
+### WAV to Soundfont Converter
 
-Navigate to [this Desmos graph](https://www.desmos.com/calculator/1rzq4xa5v0).
+The web interface includes a WAV to soundfont converter that allows you to create custom soundfonts from audio files. Here's how to use it:
+
+1. Upload a WAV file by dragging and dropping or clicking to browse
+2. Configure the analysis parameters:
+
+   - **Samples** (1024-32768): Number of samples to analyze. Higher values give better accuracy but slower analysis. The value is 2^n (e.g., 2^13 = 8192 samples).
+
+   - **Start Time** (0-10s): Position in the audio file to begin analysis. Useful for skipping silence or finding the best-sounding part of the audio.
+
+   - **Base Frequency** (0-2000Hz): Fundamental frequency to analyze. For best results, this should match the pitch of your audio. For example:
+     - A4 = 440Hz
+     - C5 = 523Hz
+     - G4 = 392Hz
+
+   - **Number of Harmonics** (1-64): Number of harmonics to extract from the audio. More harmonics create a richer sound, but too many can introduce artifacts.
+
+   - **Boost** (0.5-2.0×): Amplification factor for the harmonics. Higher values make the sound brighter but may cause clipping.
+
+3. Preview the generated soundfont using the built-in audio player
+4. Save the soundfont when you're satisfied with the result
+
+The converter uses FFT analysis to extract the harmonic content of your audio, which can then be used as a soundfont in the MIDI converter.
 
 ### Command Line Interface
+
+Navigate to [this Desmos graph](https://www.desmos.com/calculator/1rzq4xa5v0) to utilize the output of this program.
 
 **Basic Usage:**
 ```bash
@@ -212,12 +237,16 @@ The web interface is built using:
 
 ## Dependencies
 
+Core dependencies:
 - `midly`: MIDI file parsing
+- `thiserror`: Derive macro for the Error trait
+
+CLI-specific dependencies:
 - `clipboard`: System clipboard integration
 - `clap`: Command line argument parsing with derive support
-- `thiserror`: Derive macro for the Error trait
-- `toml`: TOML file parsing for configuration
-- `axum`: Modern web framework for building HTTP APIs
+
+Web UI-specific dependencies:
+- `axum`: Modern web framework for building HTTP APIs (with multipart support)
 - `tokio`: Asynchronous runtime for Rust
 - `tower-http`: HTTP components for the Tower middleware framework
 - `tower`: Modular components for building robust clients and servers
@@ -225,8 +254,9 @@ The web interface is built using:
 - `serde_json`: JSON support for serde
 - `tracing`: Application-level tracing framework
 - `tracing-subscriber`: Utilities for implementing and composing tracing subscribers
-- `uuid`: UUID generation and parsing
-- `mime`: MIME type handling
+- `toml`: TOML file parsing for configuration
+- `rustfft`: Fast Fourier Transform implementation for audio analysis
+- `hound`: WAV file reading and writing
 
 ## Credits
 
