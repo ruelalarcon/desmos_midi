@@ -1,5 +1,4 @@
-// Import the file manager module
-import * as fileManager from './modules/fileManager.js';
+import * as FileManager from './modules/FileManager.js';
 
 // Global variables
 let uploadedFilename = null;
@@ -76,7 +75,7 @@ async function uploadMidiFile(file) {
 
     try {
         // Upload the file using the file manager
-        const data = await fileManager.uploadFile(file);
+        const data = await FileManager.uploadFile(file);
 
         uploadedFilename = data.filename;
 
@@ -94,7 +93,7 @@ async function uploadMidiFile(file) {
 
 async function loadSoundfonts() {
     try {
-        availableSoundfonts = await fileManager.getSoundfonts();
+        availableSoundfonts = await FileManager.getSoundfonts();
         // Add the ignore option
         availableSoundfonts.unshift('-');
     } catch (error) {
@@ -109,7 +108,7 @@ async function loadChannelInfo(filename) {
     step2.classList.remove('hidden');
 
     try {
-        const data = await fileManager.getMidiInfo(filename);
+        const data = await FileManager.getMidiInfo(filename);
         channelInfo = data.channels || [];
         populateChannelTable(channelInfo);
         convertBtn.disabled = false;
@@ -184,7 +183,7 @@ async function convertMidi() {
 
     try {
         // Convert the MIDI file using the file manager
-        const data = await fileManager.convertMidi(uploadedFilename, soundfonts);
+        const data = await FileManager.convertMidi(uploadedFilename, soundfonts);
         resultArea.textContent = data.formula;
         copyBtn.disabled = false;
     } catch (error) {

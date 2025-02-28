@@ -1,6 +1,6 @@
 # Desmos MIDI Player
 
-> A Rust-based CLI tool and Web UI for converting MIDI files into formulas for Desmos. Complete with support for note velocity, tempo changes, and even custom soundfonts for different channels/instruments.
+> A Rust-based CLI tool and Web UI for converting MIDI files into formulas for Desmos. Complete with support for note velocity, tempo changes, and even custom soundfonts for different channels/instruments. Web UI also comes with a WAV to soundfont converter.
 
 ## Installation
 
@@ -34,14 +34,20 @@ Then build the project using the provided script:
 
 **Windows:**
 ```bash
-./build.bat
+./build.bat              # Build both CLI and Web UI
+./build.bat --cli-only   # Build only the CLI
+./build.bat --web-only   # Build only the Web UI
 ```
 
 **Linux/Mac:**
 ```bash
-./build.sh
+./build.sh              # Build both CLI and Web UI
+./build.sh --cli-only   # Build only the CLI
+./build.sh --web-only   # Build only the Web UI
 ```
 > Note: You may need to run `chmod +x *.sh` first to make the scripts executable if they aren't by default.
+
+The CLI version has minimal dependencies and is quick to build. The Web UI version includes additional dependencies for the web server and interface.
 
 To clean build artifacts at any time, you can use:
 ```bash
@@ -49,9 +55,11 @@ To clean build artifacts at any time, you can use:
 ./clean.sh   # Linux/Mac
 ```
 
-## Web Interface
+## Usage
 
-For a user-friendly experience, you can use the web interface by opening the `webui.bat` on Windows, or `webui.sh` on Linux/Mac.
+### Web Interface
+
+For a user-friendly experience, you can use the web interface by running `webui.bat` on Windows, or `webui.sh` on Linux/Mac.
 
 This will start a local web server at `http://localhost:8573` where you can:
 1. Upload MIDI files
@@ -60,6 +68,13 @@ This will start a local web server at `http://localhost:8573` where you can:
 4. Convert to Desmos formula
 5. Copy the formula to clipboard
 
+You can also navigate to the WAV to Soundfont Converter where you can:
+1. Upload WAV files
+2. Analyze the audio files to generate a soundfont
+3. Configure the analysis parameters
+4. Get a live preview of what the soundfont would sound like
+5. Save the soundfont to your soundfonts
+
 You can also specify a custom port:
 
 ```bash
@@ -67,11 +82,34 @@ You can also specify a custom port:
 ./webui.sh --port 9000   # Linux/Mac
 ```
 
-## Usage
+### WAV to Soundfont Converter
 
-Navigate to [this Desmos graph](https://www.desmos.com/calculator/1rzq4xa5v0).
+The web interface includes a WAV to soundfont converter that allows you to create custom soundfonts from audio files. Here's how to use it:
+
+1. Upload a WAV file by dragging and dropping or clicking to browse
+2. Configure the analysis parameters:
+
+   - **Samples** (1024-32768): Number of samples to analyze. Higher values give better accuracy but slower analysis. The value is 2^n (e.g., 2^13 = 8192 samples).
+
+   - **Start Time** (0-10s): Position in the audio file to begin analysis. Useful for skipping silence or finding the best-sounding part of the audio.
+
+   - **Base Frequency** (0-2000Hz): Fundamental frequency to analyze. For best results, this should match the pitch of your audio. For example:
+     - A4 = 440Hz
+     - C5 = 523Hz
+     - G4 = 392Hz
+
+   - **Number of Harmonics** (1-64): Number of harmonics to extract from the audio. More harmonics create a richer sound, but too many can introduce artifacts.
+
+   - **Boost** (0.5-2.0×): Amplification factor for the harmonics. Higher values make the sound brighter but may cause clipping.
+
+3. Preview the generated soundfont using the built-in audio player
+4. Save the soundfont when you're satisfied with the result
+
+The converter uses FFT analysis to extract the harmonic content of your audio, which can then be used as a soundfont in the MIDI converter.
 
 ### Command Line Interface
+
+Navigate to [this Desmos graph](https://www.desmos.com/calculator/1rzq4xa5v0) to utilize the output of this program.
 
 **Basic Usage:**
 ```bash
@@ -199,12 +237,26 @@ The web interface is built using:
 
 ## Dependencies
 
+Core dependencies:
 - `midly`: MIDI file parsing
+- `thiserror`: Derive macro for the Error trait
+
+CLI-specific dependencies:
 - `clipboard`: System clipboard integration
-- `clap`: Command line argument parsing
-- `axum`: Web server framework
-- `tokio`: Asynchronous runtime
-- `tower-http`: HTTP components for Tower
+- `clap`: Command line argument parsing with derive support
+
+Web UI-specific dependencies:
+- `axum`: Modern web framework for building HTTP APIs (with multipart support)
+- `tokio`: Asynchronous runtime for Rust
+- `tower-http`: HTTP components for the Tower middleware framework
+- `tower`: Modular components for building robust clients and servers
+- `serde`: Serialization/deserialization framework
+- `serde_json`: JSON support for serde
+- `tracing`: Application-level tracing framework
+- `tracing-subscriber`: Utilities for implementing and composing tracing subscribers
+- `toml`: TOML file parsing for configuration
+- `rustfft`: Fast Fourier Transform implementation for audio analysis
+- `hound`: WAV file reading and writing
 
 ## Credits
 

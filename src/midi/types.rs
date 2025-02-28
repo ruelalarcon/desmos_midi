@@ -1,23 +1,36 @@
 // Basic MIDI types
+/// Timestamp in milliseconds
 pub type Timestamp = u64;
+/// MIDI note number (0-127)
 pub type MidiNote = u8;
+/// Note velocity (0-127)
 pub type Velocity = u8;
+/// Number of semitones relative to A4 (440Hz)
 pub type RelativeNote = i32;
+/// Vector of harmonic weights for a particular instrument/sound
 pub type SoundFont = Vec<f32>;
 
 // Constants
+/// Maximum length of a single Desmos formula section
+/// Formulas longer than this will be split into multiple sections
 const MAX_FORMULA_LENGTH: usize = 20000;
 
 // Tempo handling
+/// Represents a tempo change event in a MIDI file
 #[derive(Debug, Clone)]
 pub struct TempoChange {
+    /// MIDI tick at which the tempo change occurs
     pub tick: u64,
+    /// New tempo in microseconds per quarter note
     pub tempo: u32,
 }
 
+/// Map of tempo changes throughout a MIDI file
 #[derive(Debug, Default)]
 pub struct TempoMap {
+    /// List of tempo changes in chronological order
     pub changes: Vec<TempoChange>,
+    /// Number of MIDI ticks per quarter note
     pub ticks_per_quarter: u32,
 }
 
@@ -38,26 +51,35 @@ impl TempoMap {
 }
 
 // Channel and instrument information
+/// Information about a MIDI channel
 #[derive(Debug, Clone)]
 pub struct Channel {
+    /// Channel number (0-15)
     pub id: u8,
+    /// MIDI program/instrument number (0-127)
     pub instrument: u8,
+    /// Whether this is a drum channel (channel 10)
     pub is_drum: bool,
 }
 
 // Note events and timing
+/// Represents a group of notes that start at the same time
 #[derive(Debug)]
 pub struct NoteEvent {
+    /// Time in milliseconds when the notes start
     pub timestamp: Timestamp,
-    /// Tuple of (note, velocity, soundfont_index, end_time)
+    /// List of (note, velocity, soundfont_index, end_time) tuples
     /// end_time is when this specific note should stop playing (in milliseconds)
     pub notes: Vec<(MidiNote, Velocity, usize, Timestamp)>,
 }
 
 // Soundfont handling
+/// Collection of soundfonts with padding to ensure consistent length
 #[derive(Debug)]
 pub struct SoundFontMap {
+    /// List of soundfonts, each padded to max_size
     pub fonts: Vec<SoundFont>,
+    /// Length of the longest soundfont
     pub max_size: usize,
 }
 
@@ -82,10 +104,14 @@ impl SoundFontMap {
 }
 
 // Main song structure
+/// Processed MIDI file ready for Desmos conversion
 #[derive(Debug)]
 pub struct ProcessedSong {
+    /// List of note events in chronological order
     pub note_changes: Vec<NoteEvent>,
+    /// List of channels used in the song
     pub channels: Vec<Channel>,
+    /// Soundfonts assigned to each channel
     pub soundfonts: SoundFontMap,
 }
 

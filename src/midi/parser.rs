@@ -77,7 +77,7 @@ fn extract_ticks_per_quarter(smf: &Smf) -> Result<u32, MidiError> {
 ///   Tempo map, channels, and note events
 fn extract_midi_metadata(
     smf: &Smf,
-    ticks_per_quarter: u32
+    ticks_per_quarter: u32,
 ) -> Result<(TempoMap, Vec<Channel>, Vec<(u64, u8, midly::MidiMessage)>), MidiError> {
     // Initialize data structures
     let mut tempo_map = TempoMap::new(ticks_per_quarter);
@@ -92,7 +92,7 @@ fn extract_midi_metadata(
         &mut tempo_changes,
         &mut all_events,
         &mut channels,
-        &mut channel_instruments
+        &mut channel_instruments,
     );
 
     // Sort and process tempo changes
@@ -186,7 +186,13 @@ fn process_tempo_changes(tempo_map: &mut TempoMap, tempo_changes: &mut Vec<Tempo
     }
 }
 
-/// Processes note events and converts them to NoteEvent structures
+/// Processes note events and converts them to NoteEvent structures.
+///
+/// This function:
+/// 1. Tracks active notes and their start times
+/// 2. Converts MIDI ticks to milliseconds
+/// 3. Groups notes that start at the same time
+/// 4. Sorts events chronologically
 ///
 /// # Arguments
 /// * `all_events` - Collection of MIDI events
@@ -202,7 +208,8 @@ fn process_note_events(
     let mut active_notes: HashMap<(MidiNote, u8), (Velocity, Timestamp)> = HashMap::new();
 
     // Note changes grouped by start time: Start Time -> Vec<(Note, Velocity, Channel, End Time)>
-    let mut note_changes: HashMap<Timestamp, Vec<(MidiNote, Velocity, usize, Timestamp)>> = HashMap::new();
+    let mut note_changes: HashMap<Timestamp, Vec<(MidiNote, Velocity, usize, Timestamp)>> =
+        HashMap::new();
 
     // Sort events by time
     let mut sorted_events = all_events;
@@ -226,7 +233,7 @@ fn process_note_events(
                     channel,
                     current_time,
                     &mut active_notes,
-                    &mut note_changes
+                    &mut note_changes,
                 );
             }
             midly::MidiMessage::NoteOff { key, .. } => {
@@ -235,7 +242,7 @@ fn process_note_events(
                     channel,
                     current_time,
                     &mut active_notes,
-                    &mut note_changes
+                    &mut note_changes,
                 );
             }
             _ => {}
@@ -339,7 +346,13 @@ pub fn parse_midi_with_soundfonts(
     Ok(song)
 }
 
-/// Updates a song with soundfont information
+/// Updates a song with soundfont information.
+///
+/// This function:
+/// 1. Updates soundfont indices in note events
+/// 2. Removes notes for channels without soundfonts
+/// 3. Removes empty note events
+/// 4. Updates the song's soundfont map
 ///
 /// # Arguments
 /// * `song` - Song to update

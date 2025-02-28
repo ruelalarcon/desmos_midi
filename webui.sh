@@ -1,8 +1,27 @@
 #!/bin/bash
+
 if [ ! -f "target/release/desmos_midi_web" ]; then
     echo "Binary not found. Please run './build.sh' first."
     exit 1
 fi
+
+show_help() {
+    echo "Usage: webui.sh [OPTIONS]"
+    echo
+    echo "Options:"
+    echo "  -p, --port PORT    Port to run the server on (default: 8573)"
+    echo "  -h, --help         Show this help message"
+    echo
+    echo "The port number must be between 1 and 65535."
+    exit 1
+}
+
+validate_port() {
+    if ! [[ "$1" =~ ^[0-9]+$ ]] || [ "$1" -lt 1 ] || [ "$1" -gt 65535 ]; then
+        echo "ERROR: Invalid port number. Must be a number between 1 and 65535."
+        exit 1
+    fi
+}
 
 # Default port
 PORT=8573
@@ -11,11 +30,20 @@ PORT=8573
 while [[ $# -gt 0 ]]; do
     case $1 in
         -p|--port)
+            if [ -z "$2" ]; then
+                echo "ERROR: Port number is required after $1"
+                show_help
+            fi
+            validate_port "$2"
             PORT="$2"
             shift 2
             ;;
+        -h|--help)
+            show_help
+            ;;
         *)
-            shift
+            echo "ERROR: Unknown argument: $1"
+            show_help
             ;;
     esac
 done

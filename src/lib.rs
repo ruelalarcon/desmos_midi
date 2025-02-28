@@ -1,2 +1,3 @@
-// Re-export the midi module
+#[cfg(feature = "webui")]
+pub mod audio;
 pub mod midi;

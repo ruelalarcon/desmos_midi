@@ -1,5 +1,6 @@
+use desmos_midi::audio::{analyze_harmonics, read_wav_file, AnalysisConfig, AudioError};
 use axum::{
-    extract::{Multipart, Path, State},
+    extract::{Multipart, Path, Query, State},
     http::{header, StatusCode},
     response::{Html, IntoResponse, Json, Response},
     routing::{get, post},
@@ -9,6 +10,8 @@ use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
     env,
+    fs::File,
+    io::Read,
     net::SocketAddr,
     path::{Path as StdPath, PathBuf},
     sync::{Arc, Mutex},
@@ -21,9 +24,35 @@ use tower_http::{
 };
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-// Constants for file expiration
-const FILE_EXPIRATION_MINUTES: u64 = 10;
-const FILE_REFRESH_THRESHOLD_MINUTES: u64 = 5;
+// Server configuration
+#[derive(Deserialize)]
+struct Config {
+    server: ServerConfig,
+}
+
+#[derive(Deserialize)]
+struct ServerConfig {
+    file_expiration_minutes: u64,
+    file_refresh_threshold_minutes: u64,
+    max_file_size_mb: u64,
+    limits: AnalysisLimits,
+}
+
+#[derive(Deserialize)]
+struct AnalysisLimits {
+    min_samples: usize,
+    max_samples: usize,
+    min_start_time: f32,
+    max_start_time: f32,
+    min_base_freq: f32,
+    max_base_freq: f32,
+    min_harmonics: usize,
+    max_harmonics: usize,
+    min_boost: f32,
+    max_boost: f32,
+}
+
+// Constants
 const DEFAULT_PORT: u16 = 8573;
 
 // App state
@@ -32,6 +61,7 @@ struct AppState {
     temp_dir: PathBuf,
     soundfont_dir: PathBuf,
     file_expirations: Arc<Mutex<HashMap<String, Instant>>>,
+    config: Arc<ServerConfig>,
 }
 
 // Response for MIDI info
@@ -66,6 +96,24 @@ struct RefreshFileRequest {
     filename: String,
 }
 
+// Response for harmonic analysis
+#[derive(Serialize)]
+struct HarmonicResponse {
+    harmonics: Vec<f32>,
+}
+
+// Query parameters for harmonic analysis
+#[derive(Deserialize)]
+struct HarmonicParams {
+    samples: Option<usize>,
+    #[serde(rename = "startTime")]
+    start_time: Option<f32>,
+    #[serde(rename = "baseFreq")]
+    base_freq: Option<f32>,
+    harmonics: Option<usize>,
+    boost: Option<f32>,
+}
+
 #[tokio::main]
 async fn main() {
     // Initialize tracing
@@ -76,6 +124,30 @@ async fn main() {
         )
         .with(tracing_subscriber::fmt::layer())
         .init();
+
+    // Load configuration
+    let config = load_config().unwrap_or_else(|e| {
+        tracing::warn!("Failed to load config.toml: {}. Using default values.", e);
+        Config {
+            server: ServerConfig {
+                file_expiration_minutes: 10,
+                file_refresh_threshold_minutes: 5,
+                max_file_size_mb: 80,
+                limits: AnalysisLimits {
+                    min_samples: 64,
+                    max_samples: 65536,
+                    min_start_time: 0.0,
+                    max_start_time: 300.0,
+                    min_base_freq: 1.0,
+                    max_base_freq: 20000.0,
+                    min_harmonics: 1,
+                    max_harmonics: 128,
+                    min_boost: 0.5,
+                    max_boost: 2.0,
+                },
+            },
+        }
+    });
 
     // Parse port from command line arguments
     let port = parse_port_from_args().unwrap_or(DEFAULT_PORT);
@@ -101,6 +173,7 @@ async fn main() {
         temp_dir,
         soundfont_dir,
         file_expirations,
+        config: Arc::new(config.server),
     });
 
     // Create static directory and subdirectories if they don't exist
@@ -136,12 +209,15 @@ async fn main() {
     // Create router
     let app = Router::new()
         .route("/", get(index_handler))
+        .route("/wav-to-soundfont", get(wav_to_soundfont_handler))
         .route("/upload", post(upload_handler))
         .route("/midi-info/{filename}", get(midi_info_handler))
         .route("/convert", post(convert_handler))
         .route("/soundfonts", get(list_soundfonts_handler))
         .route("/refresh-file", post(refresh_file_handler))
         .route("/getfile/{filename}", get(get_file_handler))
+        .route("/save-soundfont/{filename}", post(save_soundfont_handler))
+        .route("/harmonic-info/{filename}", get(harmonic_info_handler))
         .nest_service("/static", ServeDir::new(StdPath::new("src/web/static")))
         .with_state(state)
         .layer(
@@ -204,7 +280,8 @@ async fn run_file_cleanup(state: Arc<AppState>) {
         // Find expired files
         {
             let mut expirations = state.file_expirations.lock().unwrap();
-            let expiration_duration = Duration::from_secs(FILE_EXPIRATION_MINUTES * 60);
+            let expiration_duration =
+                Duration::from_secs(state.config.file_expiration_minutes * 60);
 
             expirations.retain(|filename, expiration_time| {
                 let is_expired = now.duration_since(*expiration_time) >= expiration_duration;
@@ -239,6 +316,12 @@ async fn index_handler() -> impl IntoResponse {
     Html(html)
 }
 
+// Handler for the wav_to_soundfont page
+async fn wav_to_soundfont_handler() -> impl IntoResponse {
+    let html = include_str!("static/wav_to_soundfont.html");
+    Html(html)
+}
+
 // Handler for uploading MIDI files
 async fn upload_handler(
     State(state): State<Arc<AppState>>,
@@ -259,22 +342,10 @@ async fn upload_handler(
             let file_name = field
                 .file_name()
                 .map(|s| s.to_string())
-                .unwrap_or_else(|| "unknown.mid".to_string());
-
-            // Only accept MIDI files
-            if !file_name.ends_with(".mid") && !file_name.ends_with(".midi") {
-                return Err((
-                    StatusCode::BAD_REQUEST,
-                    "Only MIDI files (.mid, .midi) are accepted".to_string(),
-                ));
-            }
+                .unwrap_or_else(|| "unknown.file".to_string());
 
             // Use the original filename directly
             original_filename = file_name;
-
-            // Create the file path
-            let path = state.temp_dir.join(&original_filename);
-            file_path = Some(path.clone());
 
             // Get the file data
             let data = field.bytes().await.map_err(|e| {
@@ -283,6 +354,22 @@ async fn upload_handler(
                     format!("Failed to read file: {}", e),
                 )
             })?;
+
+            // Check file size
+            let max_size = state.config.max_file_size_mb * 1024 * 1024; // Convert MB to bytes
+            if data.len() > max_size as usize {
+                return Err((
+                    StatusCode::BAD_REQUEST,
+                    format!(
+                        "File too large. Maximum size is {} MB",
+                        state.config.max_file_size_mb
+                    ),
+                ));
+            }
+
+            // Create the file path
+            let path = state.temp_dir.join(&original_filename);
+            file_path = Some(path.clone());
 
             // Write the file
             let mut file = fs::File::create(&path).await.map_err(|e| {
@@ -306,12 +393,12 @@ async fn upload_handler(
         }
     }
 
-    // Return the filename
+    // Return the filename with config values
     match file_path {
         Some(_) => Ok(Json(serde_json::json!({
             "filename": original_filename,
-            "expires_in_minutes": FILE_EXPIRATION_MINUTES,
-            "refresh_threshold_minutes": FILE_REFRESH_THRESHOLD_MINUTES
+            "expires_in_minutes": state.config.file_expiration_minutes,
+            "refresh_threshold_minutes": state.config.file_refresh_threshold_minutes
         }))),
         None => Err((
             StatusCode::BAD_REQUEST,
@@ -426,7 +513,7 @@ async fn refresh_file_handler(
         "status": "ok",
         "message": "File expiration refreshed",
         "filename": request.filename,
-        "expires_in_minutes": FILE_EXPIRATION_MINUTES
+        "expires_in_minutes": state.config.file_expiration_minutes
     })))
 }
 
@@ -515,4 +602,122 @@ async fn list_soundfonts_handler(
     }
 
     Ok(Json(serde_json::json!({ "soundfonts": soundfonts })))
+}
+
+// Handler for saving soundfonts
+async fn save_soundfont_handler(
+    Path(filename): Path<String>,
+    State(state): State<Arc<AppState>>,
+    Json(soundfont): Json<Vec<f32>>,
+) -> Result<Response, (StatusCode, String)> {
+    // Ensure filename has .txt extension
+    let filename = if !filename.ends_with(".txt") {
+        format!("{}.txt", filename)
+    } else {
+        filename
+    };
+
+    // Create the file path
+    let file_path = state.soundfont_dir.join(&filename);
+
+    // Convert soundfont weights to string
+    let content = soundfont
+        .iter()
+        .map(|x| x.to_string())
+        .collect::<Vec<_>>()
+        .join(",");
+
+    // Write to file
+    fs::write(&file_path, content).await.map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to write soundfont file: {}", e),
+        )
+    })?;
+
+    let json = serde_json::json!({
+        "status": "ok",
+        "message": "Soundfont saved successfully",
+        "filename": filename
+    });
+
+    Ok(Response::builder()
+        .header("Content-Type", "application/json")
+        .body(axum::body::Body::from(json.to_string()))
+        .unwrap())
+}
+
+// Handler for analyzing WAV files
+async fn harmonic_info_handler(
+    State(state): State<Arc<AppState>>,
+    Path(filename): Path<String>,
+    Query(params): Query<HarmonicParams>,
+) -> Result<Json<HarmonicResponse>, (StatusCode, String)> {
+    let config = Arc::clone(&state.config);
+    let limits = &config.limits;
+
+    // Get parameters with defaults and limits
+    let samples = params.samples.unwrap_or(8192).clamp(limits.min_samples, limits.max_samples);
+    let start_time = params
+        .start_time
+        .unwrap_or(0.0)
+        .clamp(limits.min_start_time, limits.max_start_time);
+    let base_freq = params
+        .base_freq
+        .unwrap_or(440.0)
+        .clamp(limits.min_base_freq, limits.max_base_freq);
+    let harmonics = params
+        .harmonics
+        .unwrap_or(16)
+        .clamp(limits.min_harmonics, limits.max_harmonics);
+    let boost = params
+        .boost
+        .unwrap_or(1.0)
+        .clamp(limits.min_boost, limits.max_boost);
+
+    let analysis_config = AnalysisConfig {
+        samples,
+        start_time,
+        base_freq,
+        num_harmonics: harmonics,
+        boost,
+    };
+
+    // Check if the file exists
+    let file_path = state.temp_dir.join(&filename);
+    if !file_path.exists() {
+        return Err((StatusCode::NOT_FOUND, "WAV file not found".to_string()));
+    }
+
+    // Read and analyze the WAV file
+    let wav_data = read_wav_file(&file_path).map_err(|e| match e {
+        AudioError::Io(io_err) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to read WAV file: {}", io_err),
+        ),
+        AudioError::WavParse(msg) => (StatusCode::BAD_REQUEST, format!("Invalid WAV file: {}", msg)),
+        _ => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Error reading WAV file: {}", e),
+        ),
+    })?;
+
+    let harmonics = analyze_harmonics(&wav_data, &analysis_config).map_err(|e| match e {
+        AudioError::InvalidParams(msg) => (StatusCode::BAD_REQUEST, msg),
+        AudioError::ProcessingError(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
+        _ => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Error analyzing WAV file: {}", e),
+        ),
+    })?;
+
+    Ok(Json(HarmonicResponse { harmonics }))
+}
+
+// Load configuration from config.toml
+fn load_config() -> Result<Config, Box<dyn std::error::Error>> {
+    let mut file = File::open("config.toml")?;
+    let mut contents = String::new();
+    file.read_to_string(&mut contents)?;
+    Ok(toml::from_str(&contents)?)
 }

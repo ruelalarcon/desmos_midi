@@ -7,31 +7,54 @@ edition = "2021"
 license = "MIT"
 repository = "https://github.com/ruelalarcon/desmos_midi"
 readme = "README.md"
-keywords = ["midi", "desmos", "music", "converter", "cli"]
+keywords = ["midi", "desmos", "music", "converter", "cli", "web"]
 categories = ["command-line-utilities", "multimedia"]
 
+[features]
+default = ["cli"]
+cli = ["clipboard", "clap"]
+webui = [
+    "axum",
+    "tokio",
+    "tower-http",
+    "serde",
+    "serde_json",
+    "tracing",
+    "tracing-subscriber",
+    "tower",
+    "toml",
+    "rustfft",
+    "hound"
+]
+
 [dependencies]
+# Core dependencies
 midly = "0.5"
-clipboard = "0.5"
-clap = { version = "4.5", features = ["derive"] }
 thiserror = "2.0.11"
 
-# Web server dependencies
-axum = { version = "0.8.1", features = ["multipart"] }
-tokio = { version = "1.36", features = ["full"] }
-tower-http = { version = "0.6.2", features = ["fs", "trace"] }
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-uuid = { version = "1.7", features = ["v4", "serde"] }
-tower = "0.5.2"
-mime = "0.3"
+# CLI dependencies
+clipboard = { version = "0.5", optional = true }
+clap = { version = "4.5", features = ["derive"], optional = true }
+
+# Web server dependencies (optional)
+axum = { version = "0.8.1", features = ["multipart"], optional = true }
+tokio = { version = "1.36", features = ["full"], optional = true }
+tower-http = { version = "0.6.2", features = ["fs", "trace"], optional = true }
+serde = { version = "1.0", features = ["derive"], optional = true }
+serde_json = { version = "1.0", optional = true }
+tracing = { version = "0.1", optional = true }
+tracing-subscriber = { version = "0.3", features = ["env-filter"], optional = true }
+tower = { version = "0.5.2", optional = true }
+toml = { version = "0.8", optional = true }
+rustfft = { version = "6.1", optional = true }
+hound = { version = "3.5", optional = true }
 
 [[bin]]
 name = "desmos_midi"
 path = "src/cli.rs"
+required-features = ["cli"]
 
 [[bin]]
 name = "desmos_midi_web"
 path = "src/web/server.rs"
+required-features = ["webui"]
