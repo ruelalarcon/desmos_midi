@@ -39,22 +39,25 @@ done
 
 echo "Building in release mode..."
 
+# Build based on selected options
 if [ $BUILD_CLI -eq 1 ]; then
-    echo "Building CLI..."
-    cargo build --release --features cli --bin desmos_midi
-    if [ $? -ne 0 ]; then
-        echo "ERROR: CLI build failed! Please check the error messages above."
-        exit 1
+    if [ $BUILD_WEB -eq 1 ]; then
+        echo "Building CLI and Web UI..."
+        cargo build --release --features "cli webui" --bins
+    else
+        echo "Building CLI..."
+        cargo build --release --features cli --bin desmos_midi
+    fi
+else
+    if [ $BUILD_WEB -eq 1 ]; then
+        echo "Building Web UI..."
+        cargo build --release --features webui --bin desmos_midi_web
     fi
 fi
 
-if [ $BUILD_WEB -eq 1 ]; then
-    echo "Building Web UI..."
-    cargo build --release --features webui --bin desmos_midi_web
-    if [ $? -ne 0 ]; then
-        echo "ERROR: Web UI build failed! Please check the error messages above."
-        exit 1
-    fi
+if [ $? -ne 0 ]; then
+    echo "ERROR: Build failed! Please check the error messages above."
+    exit 1
 fi
 
 echo "Build completed successfully!"

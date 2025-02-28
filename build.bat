@@ -31,22 +31,25 @@ goto :show_help
 
 echo Building in release mode...
 
+:: Build based on selected options
 if !BUILD_CLI! equ 1 (
-    echo Building CLI...
-    cargo build --release --features cli --bin desmos_midi
-    if !ERRORLEVEL! neq 0 (
-        echo ERROR: CLI build failed! Please check the error messages above.
-        exit /b 1
+    if !BUILD_WEB! equ 1 (
+        echo Building CLI and Web UI...
+        cargo build --release --features "cli webui" --bins
+    ) else (
+        echo Building CLI...
+        cargo build --release --features cli --bin desmos_midi
+    )
+) else (
+    if !BUILD_WEB! equ 1 (
+        echo Building Web UI...
+        cargo build --release --features webui --bin desmos_midi_web
     )
 )
 
-if !BUILD_WEB! equ 1 (
-    echo Building Web UI...
-    cargo build --release --features webui --bin desmos_midi_web
-    if !ERRORLEVEL! neq 0 (
-        echo ERROR: Web UI build failed! Please check the error messages above.
-        exit /b 1
-    )
+if !ERRORLEVEL! neq 0 (
+    echo ERROR: Build failed! Please check the error messages above.
+    exit /b 1
 )
 
 echo Build completed successfully!
