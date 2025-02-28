@@ -320,6 +320,7 @@ a:hover {
     width: 100%;
     height: 6px;
     -webkit-appearance: none;
+    appearance: none;
     background: var(--border-color);
     border-radius: 3px;
     outline: none;
