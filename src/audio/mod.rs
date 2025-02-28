@@ -1,5 +1,5 @@
 /// Audio processing module for analyzing WAV files and extracting harmonic information.
-/// 
+///
 /// This module provides functionality to:
 /// - Read and parse WAV files
 /// - Analyze audio data to extract harmonic content

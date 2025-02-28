@@ -2,6 +2,25 @@ use super::types::{AnalysisConfig, AudioError, WavData};
 use rustfft::{num_complex::Complex, FftPlanner};
 use std::f32::consts::PI;
 
+/// Analyzes a WAV file to extract harmonic content.
+///
+/// This function performs the following steps:
+/// 1. Validates the analysis configuration
+/// 2. Extracts mono samples from the WAV data
+/// 3. Applies a Hann window to the samples
+/// 4. Performs FFT analysis
+/// 5. Extracts and normalizes harmonic weights
+///
+/// # Arguments
+/// * `wav_data` - The WAV data to analyze
+/// * `config` - Configuration parameters for the analysis
+///
+/// # Returns
+/// * `Result<Vec<f32>, AudioError>` - Vector of normalized harmonic weights
+///
+/// # Errors
+/// * If the configuration is invalid
+/// * If there's an error during FFT processing
 pub fn analyze_harmonics(
     wav_data: &WavData,
     config: &AnalysisConfig,
@@ -22,6 +41,21 @@ pub fn analyze_harmonics(
     extract_harmonic_weights(&spectrum, config, wav_data.sample_rate)
 }
 
+/// Extracts mono samples from multi-channel WAV data.
+///
+/// If the input is multi-channel, the samples are averaged across all channels.
+/// The extracted samples start at the configured start time and include the
+/// specified number of samples.
+///
+/// # Arguments
+/// * `wav_data` - The WAV data to extract samples from
+/// * `config` - Configuration specifying start time and number of samples
+///
+/// # Returns
+/// * `Result<Vec<f32>, AudioError>` - Vector of mono samples
+///
+/// # Errors
+/// * If the requested sample range exceeds the file length
 fn extract_mono_samples(
     wav_data: &WavData,
     config: &AnalysisConfig,
@@ -50,6 +84,16 @@ fn extract_mono_samples(
     Ok(mono_samples)
 }
 
+/// Applies a Hann window function to the input samples.
+///
+/// The Hann window is used to reduce spectral leakage in the FFT analysis.
+/// The window function is: w(n) = 0.5 * (1 - cos(2π*n/(N-1)))
+///
+/// # Arguments
+/// * `samples` - Input samples to apply the window to
+///
+/// # Returns
+/// * `Vec<f32>` - Windowed samples
 fn apply_hann_window(samples: &[f32]) -> Vec<f32> {
     let len = samples.len();
     samples
@@ -62,6 +106,16 @@ fn apply_hann_window(samples: &[f32]) -> Vec<f32> {
         .collect()
 }
 
+/// Performs Fast Fourier Transform (FFT) on the input samples.
+///
+/// Converts the real-valued input samples to complex numbers and
+/// performs an in-place FFT using the rustfft library.
+///
+/// # Arguments
+/// * `samples` - Input samples to transform
+///
+/// # Returns
+/// * `Result<Vec<Complex<f32>>, AudioError>` - Complex FFT spectrum
 fn compute_fft(samples: &[f32]) -> Result<Vec<Complex<f32>>, AudioError> {
     let mut planner = FftPlanner::new();
     let fft = planner.plan_fft_forward(samples.len());
@@ -75,6 +129,25 @@ fn compute_fft(samples: &[f32]) -> Result<Vec<Complex<f32>>, AudioError> {
     Ok(buffer)
 }
 
+/// Extracts harmonic weights from the FFT spectrum.
+///
+/// For each harmonic:
+/// 1. Calculates the target frequency bin
+/// 2. Uses quadratic interpolation for precise magnitude
+/// 3. Normalizes the magnitudes to [0, 1] range
+/// 4. Applies the boost factor
+/// 5. Rounds to 5 decimal places
+///
+/// # Arguments
+/// * `spectrum` - FFT spectrum to analyze
+/// * `config` - Analysis configuration
+/// * `sample_rate` - Sample rate of the audio
+///
+/// # Returns
+/// * `Result<Vec<f32>, AudioError>` - Vector of harmonic weights
+///
+/// # Errors
+/// * If any harmonic frequency exceeds the Nyquist frequency
 fn extract_harmonic_weights(
     spectrum: &[Complex<f32>],
     config: &AnalysisConfig,
@@ -121,7 +194,9 @@ fn extract_harmonic_weights(
     harmonics.iter_mut().for_each(|x| *x *= config.boost);
 
     // Round to 5 decimal places
-    harmonics.iter_mut().for_each(|x| *x = (*x * 100000.0).round() / 100000.0);
+    harmonics
+        .iter_mut()
+        .for_each(|x| *x = (*x * 100000.0).round() / 100000.0);
 
     Ok(harmonics)
 }

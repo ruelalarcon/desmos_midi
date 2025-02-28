@@ -41,6 +41,7 @@
                         <label for="samples">Samples</label>
                         <input type="range" id="samples" min="10" max="15" value="13">
                         <div class="value" id="samples-value">8192 samples</div>
+                        <small class="param-desc">Number of samples to analyze. More samples = better accuracy but slower analysis. Value is 2^n.</small>
                     </div>
 
                     <div class="parameter">
@@ -50,6 +51,7 @@
                             <input type="text" id="start-time-value" value="0.0" />
                             <span class="unit">s</span>
                         </div>
+                        <small class="param-desc">Time position in the audio file to start analysis. Useful for skipping silence or finding the best-sounding part.</small>
                     </div>
 
                     <div class="parameter">
@@ -59,6 +61,7 @@
                             <input type="text" id="base-freq-value" value="440" />
                             <span class="unit">Hz</span>
                         </div>
+                        <small class="param-desc">Fundamental frequency to analyze. For best results, should match the pitch of your audio (For example, if your audio is playing C5, use 523Hz).</small>
                     </div>
 
                     <div class="parameter">
@@ -68,6 +71,7 @@
                             <input type="text" id="harmonics-value" value="16" />
                             <span class="unit">harmonics</span>
                         </div>
+                        <small class="param-desc">Number of harmonics to extract. More harmonics = richer sound, but may introduce artifacts if too high.</small>
                     </div>
 
                     <div class="parameter">
@@ -77,6 +81,7 @@
                             <input type="text" id="boost-value" value="1.0" />
                             <span class="unit">×</span>
                         </div>
+                        <small class="param-desc">Amplification factor for the harmonics. Higher values make the sound brighter but may cause clipping.</small>
                     </div>
                 </div>
 
