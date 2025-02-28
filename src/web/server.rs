@@ -203,6 +203,7 @@ async fn main() {
     // Create router
     let app = Router::new()
         .route("/", get(index_handler))
+        .route("/wav-to-soundfont", get(wav_to_soundfont_handler))
         .route("/upload", post(upload_handler))
         .route("/midi-info/{filename}", get(midi_info_handler))
         .route("/convert", post(convert_handler))
@@ -306,6 +307,12 @@ async fn run_file_cleanup(state: Arc<AppState>) {
 // Handler for the index page
 async fn index_handler() -> impl IntoResponse {
     let html = include_str!("static/index.html");
+    Html(html)
+}
+
+// Handler for the wav_to_soundfont page
+async fn wav_to_soundfont_handler() -> impl IntoResponse {
+    let html = include_str!("static/wav_to_soundfont.html");
     Html(html)
 }
 
