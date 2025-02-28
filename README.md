@@ -51,7 +51,7 @@ To clean build artifacts at any time, you can use:
 
 ## Web Interface
 
-For a user-friendly experience, you can use the web interface by opening the `webui.bat` on Windows, or `webui.sh` on Linux/Mac.
+For a user-friendly experience, you can use the web interface by running `webui.bat` on Windows, or `webui.sh` on Linux/Mac.
 
 This will start a local web server at `http://localhost:8573` where you can:
 1. Upload MIDI files
@@ -59,6 +59,13 @@ This will start a local web server at `http://localhost:8573` where you can:
 3. Configure soundfonts for each channel
 4. Convert to Desmos formula
 5. Copy the formula to clipboard
+
+You can also navigate to the WAV to Soundfont Converter where you can:
+1. Upload WAV files
+2. Analyze the audio files to generate a soundfont
+3. Configure the analysis parameters
+4. Get a live preview of what the soundfont would sound like
+5. Save the soundfont to your soundfonts
 
 You can also specify a custom port:
 
@@ -201,10 +208,19 @@ The web interface is built using:
 
 - `midly`: MIDI file parsing
 - `clipboard`: System clipboard integration
-- `clap`: Command line argument parsing
-- `axum`: Web server framework
-- `tokio`: Asynchronous runtime
-- `tower-http`: HTTP components for Tower
+- `clap`: Command line argument parsing with derive support
+- `thiserror`: Derive macro for the Error trait
+- `toml`: TOML file parsing for configuration
+- `axum`: Modern web framework for building HTTP APIs
+- `tokio`: Asynchronous runtime for Rust
+- `tower-http`: HTTP components for the Tower middleware framework
+- `tower`: Modular components for building robust clients and servers
+- `serde`: Serialization/deserialization framework
+- `serde_json`: JSON support for serde
+- `tracing`: Application-level tracing framework
+- `tracing-subscriber`: Utilities for implementing and composing tracing subscribers
+- `uuid`: UUID generation and parsing
+- `mime`: MIME type handling
 
 ## Credits
 
