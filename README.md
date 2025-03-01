@@ -1,6 +1,6 @@
 # Desmos MIDI Player
 
-> A Rust-based CLI tool and Web UI for converting MIDI files into formulas for Desmos. Complete with support for note velocity, tempo changes, and even custom soundfonts for different channels/instruments. Web UI also comes with a WAV to soundfont converter.
+> A Rust-based CLI tool and Web UI for converting MIDI files into formulas for Desmos. Complete with support for note velocity, dynamic tempo, custom soundfonts for different channels/instruments, and wav to soundfont conversion through the Web UI.
 
 ## Installation
 
@@ -97,7 +97,7 @@ The web server supports the following command-line options:
 
 ### WAV to Soundfont Converter
 
-The web interface includes a WAV to soundfont converter that allows you to create custom soundfonts from audio files. Here's how to use it:
+The web interface includes a WAV to soundfont converter that allows you to create custom soundfonts from audio files. To use it:
 
 1. Upload a WAV file by dragging and dropping or clicking to browse
 2. Configure the analysis parameters:
@@ -253,10 +253,10 @@ The web interface is built using:
 Core dependencies:
 - `midly`: MIDI file parsing
 - `thiserror`: Derive macro for the Error trait
+- `clap`: Command line argument parsing with derive support
 
 CLI-specific dependencies:
 - `clipboard`: System clipboard integration
-- `clap`: Command line argument parsing with derive support
 
 Web UI-specific dependencies:
 - `axum`: Modern web framework for building HTTP APIs (with multipart support)
