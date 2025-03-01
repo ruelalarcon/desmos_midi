@@ -1,3 +1,7 @@
+[common]
+# Directory where soundfonts are stored
+soundfonts_dir = "soundfonts"
+
 [server]
 # Time in minutes before uploaded files are deleted
 file_expiration_minutes = 10
@@ -18,3 +22,5 @@ min_base_freq = 1.0     # Minimum base frequency in Hz
 max_base_freq = 20000.0 # Maximum base frequency in Hz (human hearing limit)
 min_harmonics = 1       # Minimum number of harmonics
 max_harmonics = 256     # Maximum number of harmonics
+min_boost = 0.5         # Minimum boost factor
+max_boost = 2.0         # Maximum boost factor

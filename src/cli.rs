@@ -1,4 +1,4 @@
-use clap::Parser;
+use clap::{Parser, Subcommand};
 use clipboard::{ClipboardContext, ClipboardProvider};
 use std::io::{self, Write};
 use std::path::Path;
@@ -7,10 +7,29 @@ use std::process;
 mod midi;
 use midi::{MidiError, MidiProcessor};
 
-/// Convert MIDI files to Desmos formulas
+use desmos_midi::audio::{self, AnalysisConfig, AudioError};
+use desmos_midi::config;
+
+/// Desmos MIDI and Audio Analysis Tool
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
-struct Args {
+struct Cli {
+    #[command(subcommand)]
+    command: Commands,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    /// Convert MIDI files to Desmos formulas
+    Midi(MidiArgs),
+
+    /// Analyze WAV files to create soundfonts
+    Audio(AudioArgs),
+}
+
+/// Convert MIDI files to Desmos formulas
+#[derive(Parser)]
+struct MidiArgs {
     /// Path to the input MIDI file
     #[arg(required = true)]
     midi_file: String,
@@ -26,10 +45,38 @@ struct Args {
     /// Soundfont files to use (in order of MIDI channels)
     #[arg(short, long = "soundfonts", value_delimiter = ' ', num_args = 1.., value_name = "FILE")]
     soundfonts: Vec<String>,
+}
 
-    /// Custom directory for soundfont files
-    #[arg(long = "soundfont-dir")]
-    soundfont_dir: Option<String>,
+/// Analyze WAV files to create soundfonts
+#[derive(Parser)]
+struct AudioArgs {
+    /// Path to the input WAV file
+    #[arg(required = true)]
+    wav_file: String,
+
+    /// Number of samples to analyze
+    #[arg(long, default_value_t = 8192)]
+    samples: usize,
+
+    /// Position in audio to begin analysis (seconds)
+    #[arg(long, default_value_t = 0.0)]
+    start_time: f32,
+
+    /// Fundamental frequency to analyze (Hz)
+    #[arg(long, default_value_t = 440.0)]
+    base_freq: f32,
+
+    /// Number of harmonics to extract
+    #[arg(long, default_value_t = 16)]
+    harmonics: usize,
+
+    /// Amplification factor for harmonics
+    #[arg(long, default_value_t = 1.0)]
+    boost: f32,
+
+    /// Copy output to clipboard instead of console
+    #[arg(short, long)]
+    copy: bool,
 }
 
 /// Process a soundfont filename to ensure it has a .txt extension
@@ -61,9 +108,7 @@ fn clipboard_error<E: std::fmt::Display>(err: E) -> MidiError {
     MidiError::ClipboardError(err.to_string())
 }
 
-fn run() -> Result<(), MidiError> {
-    let args = Args::parse();
-
+fn run_midi_command(args: &MidiArgs) -> Result<(), MidiError> {
     // Check if MIDI file exists with a clear error message
     if !Path::new(&args.midi_file).exists() {
         return Err(MidiError::Io(io::Error::new(
@@ -72,11 +117,10 @@ fn run() -> Result<(), MidiError> {
         )));
     }
 
-    // Create MidiProcessor
-    let processor = match &args.soundfont_dir {
-        Some(dir) => MidiProcessor::with_soundfont_dir(dir),
-        None => MidiProcessor::new(),
-    };
+    // Create MidiProcessor using the directory from config.toml
+    let soundfonts_dir = config::get_soundfonts_dir();
+    let processor =
+        MidiProcessor::with_soundfont_dir(soundfonts_dir.to_str().unwrap_or("soundfonts"));
 
     // Process MIDI file
     let song = if args.info {
@@ -133,19 +177,77 @@ fn run() -> Result<(), MidiError> {
     Ok(())
 }
 
+fn run_audio_command(args: &AudioArgs) -> Result<(), AudioError> {
+    // Check if WAV file exists
+    let wav_path = Path::new(&args.wav_file);
+    if !wav_path.exists() {
+        return Err(AudioError::Io(io::Error::new(
+            io::ErrorKind::NotFound,
+            format!("WAV file not found: {}", args.wav_file),
+        )));
+    }
+
+    // Read WAV file and analyze without printing status messages
+    let wav_data = audio::read_wav_file(wav_path)?;
+
+    // Create analysis config
+    let config = AnalysisConfig {
+        samples: args.samples,
+        start_time: args.start_time,
+        base_freq: args.base_freq,
+        num_harmonics: args.harmonics,
+        boost: args.boost,
+    };
+
+    // Analyze harmonics
+    let harmonics = audio::analyze_harmonics(&wav_data, &config)?;
+
+    // Format the harmonics as a comma-separated string
+    let output = harmonics
+        .iter()
+        .map(|h| h.to_string())
+        .collect::<Vec<String>>()
+        .join(",");
+
+    if args.copy {
+        // Copy to clipboard
+        ClipboardContext::new()
+            .map_err(|e| AudioError::ProcessingError(e.to_string()))?
+            .set_contents(output)
+            .map_err(|e| AudioError::ProcessingError(e.to_string()))?;
+        println!("Successfully copied soundfont to clipboard!");
+    } else {
+        // Output directly to console, just the weights
+        io::stdout().write_all(output.as_bytes())?;
+    }
+
+    Ok(())
+}
+
+fn run() -> Result<(), Box<dyn std::error::Error>> {
+    let cli = Cli::parse();
+
+    match &cli.command {
+        Commands::Midi(args) => run_midi_command(args)?,
+        Commands::Audio(args) => run_audio_command(args)?,
+    }
+
+    Ok(())
+}
+
 fn main() {
     match run() {
         Ok(_) => {}
         Err(err) => {
             eprintln!("\nERROR: {}\n", err);
-            match err {
-                MidiError::Io(ref io_err) if io_err.kind() == io::ErrorKind::NotFound => {
+            match err.downcast_ref::<MidiError>() {
+                Some(MidiError::Io(ref io_err)) if io_err.kind() == io::ErrorKind::NotFound => {
                     eprintln!("Please check that:");
                     eprintln!("1. The file path is correct");
                     eprintln!("2. The file exists");
                     eprintln!("3. You have permission to read the file");
                 }
-                MidiError::InvalidSoundfont(ref _msg) => {
+                Some(MidiError::InvalidSoundfont(ref _msg)) => {
                     eprintln!("Make sure the file exists in the soundfonts directory!");
                 }
                 _ => {}

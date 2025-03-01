@@ -7,11 +7,10 @@ use axum::{
 };
 use clap::Parser;
 use desmos_midi::audio::{analyze_harmonics, read_wav_file, AnalysisConfig, AudioError};
+use desmos_midi::config;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
-    fs::File,
-    io::Read,
     net::SocketAddr,
     path::{Path as StdPath, PathBuf},
     sync::{Arc, Mutex},
@@ -37,41 +36,13 @@ struct Args {
     no_open_browser: bool,
 }
 
-// Server configuration
-#[derive(Deserialize)]
-struct Config {
-    server: ServerConfig,
-}
-
-#[derive(Deserialize)]
-struct ServerConfig {
-    file_expiration_minutes: u64,
-    file_refresh_threshold_minutes: u64,
-    max_file_size_mb: u64,
-    limits: AnalysisLimits,
-}
-
-#[derive(Deserialize)]
-struct AnalysisLimits {
-    min_samples: usize,
-    max_samples: usize,
-    min_start_time: f32,
-    max_start_time: f32,
-    min_base_freq: f32,
-    max_base_freq: f32,
-    min_harmonics: usize,
-    max_harmonics: usize,
-    min_boost: f32,
-    max_boost: f32,
-}
-
 // App state
 #[derive(Clone)]
 struct AppState {
     temp_dir: PathBuf,
     soundfont_dir: PathBuf,
     file_expirations: Arc<Mutex<HashMap<String, Instant>>>,
-    config: Arc<ServerConfig>,
+    config: Arc<config::ServerConfig>,
 }
 
 // Response for MIDI info
@@ -139,28 +110,14 @@ async fn main() {
     let args = Args::parse();
 
     // Load configuration
-    let config = load_config().unwrap_or_else(|e| {
-        tracing::warn!("Failed to load config.toml: {}. Using default values.", e);
-        Config {
-            server: ServerConfig {
-                file_expiration_minutes: 10,
-                file_refresh_threshold_minutes: 5,
-                max_file_size_mb: 80,
-                limits: AnalysisLimits {
-                    min_samples: 64,
-                    max_samples: 65536,
-                    min_start_time: 0.0,
-                    max_start_time: 300.0,
-                    min_base_freq: 1.0,
-                    max_base_freq: 20000.0,
-                    min_harmonics: 1,
-                    max_harmonics: 128,
-                    min_boost: 0.5,
-                    max_boost: 2.0,
-                },
-            },
+    let config = config::load_config().unwrap_or_default();
+    let server_config = match config.server {
+        Some(server) => server,
+        None => {
+            tracing::warn!("Server configuration not found in config.toml. Using default values.");
+            config::ServerConfig::default()
         }
-    });
+    };
 
     // Create temp directory if it doesn't exist
     let temp_dir = PathBuf::from("temp");
@@ -171,8 +128,8 @@ async fn main() {
         clean_temp_directory(&temp_dir).await;
     }
 
-    // Get soundfont directory
-    let soundfont_dir = PathBuf::from("soundfonts");
+    // Get soundfont directory from config
+    let soundfont_dir = PathBuf::from(&config.common.soundfonts_dir);
     if !soundfont_dir.exists() {
         fs::create_dir_all(&soundfont_dir).await.unwrap();
     }
@@ -183,7 +140,7 @@ async fn main() {
         temp_dir,
         soundfont_dir,
         file_expirations,
-        config: Arc::new(config.server),
+        config: Arc::new(server_config),
     });
 
     // Create static directory and subdirectories if they don't exist
@@ -456,7 +413,7 @@ async fn midi_info_handler(
         expirations.insert(filename, Instant::now());
     }
 
-    // Create MIDI processor
+    // Create MIDI processor with soundfont directory from config
     let processor = ::desmos_midi::midi::MidiProcessor::with_soundfont_dir(
         state.soundfont_dir.to_str().unwrap(),
     );
@@ -503,7 +460,7 @@ async fn convert_handler(
         expirations.insert(request.filename, Instant::now());
     }
 
-    // Create MIDI processor
+    // Create MIDI processor with soundfont directory from config
     let processor = ::desmos_midi::midi::MidiProcessor::with_soundfont_dir(
         state.soundfont_dir.to_str().unwrap(),
     );
@@ -750,12 +707,4 @@ async fn harmonic_info_handler(
     })?;
 
     Ok(Json(HarmonicResponse { harmonics }))
-}
-
-// Load configuration from config.toml
-fn load_config() -> Result<Config, Box<dyn std::error::Error>> {
-    let mut file = File::open("config.toml")?;
-    let mut contents = String::new();
-    file.read_to_string(&mut contents)?;
-    Ok(toml::from_str(&contents)?)
 }

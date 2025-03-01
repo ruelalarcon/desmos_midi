@@ -19,8 +19,9 @@ bin/
 # Temporary files
 temp/
 
-# Ensure scripts maintain their line endings
-*.sh text eol=lf
-*.bat text eol=crlf
-clean.sh text eol=lf
-clean.bat text eol=crlf
+# Soundfonts
+soundfonts/
+
+# Unignore default soundfonts
+!soundfonts/default.txt
+!soundfonts/sine.txt

@@ -2,7 +2,7 @@
 name = "desmos_midi"
 authors = ["Ruel Nathaniel Alarcon"]
 description = "A Rust-based CLI tool and Web UI for converting MIDI files into formulas for Desmos."
-version = "1.2.1"
+version = "2.0.0"
 edition = "2021"
 license = "MIT"
 repository = "https://github.com/ruelalarcon/desmos_midi"
@@ -11,8 +11,10 @@ keywords = ["midi", "desmos", "music", "converter", "cli", "web"]
 categories = ["command-line-utilities", "multimedia"]
 
 [features]
-default = ["cli"]
-cli = ["clipboard"]
+default = ["cli", "webui"]
+cli = [
+    "clipboard"
+]
 webui = [
     "axum",
     "tokio",
@@ -22,16 +24,16 @@ webui = [
     "tracing",
     "tracing-subscriber",
     "tower",
-    "toml",
-    "rustfft",
-    "hound"
+    "toml"
 ]
 
 [dependencies]
 # Core dependencies
-midly = "0.5"
 thiserror = "2.0.11"
 clap = { version = "4.5", features = ["derive"] }
+midly = "0.5"
+rustfft = "6.1"
+hound = "3.5"
 
 # CLI dependencies
 clipboard = { version = "0.5", optional = true }
@@ -46,8 +48,6 @@ tracing = { version = "0.1", optional = true }
 tracing-subscriber = { version = "0.3", features = ["env-filter"], optional = true }
 tower = { version = "0.5.2", optional = true }
 toml = { version = "0.8", optional = true }
-rustfft = { version = "6.1", optional = true }
-hound = { version = "3.5", optional = true }
 
 [[bin]]
 name = "desmos_midi"

@@ -1,6 +1,6 @@
 # Desmos MIDI Player
 
-> A Rust-based CLI tool and Web UI for converting MIDI files into formulas for Desmos. Complete with support for note velocity, dynamic tempo, custom soundfonts for different channels/instruments, and wav to soundfont conversion through the Web UI.
+> A Rust-based CLI tool and Web UI for converting MIDI files into formulas for Desmos. Complete with support for note velocity, dynamic tempo, custom soundfonts for different channels/instruments, and wav to soundfont conversion utilizing FFT audio analysis.
 
 ## Installation
 
@@ -30,36 +30,82 @@ git clone https://github.com/ruelalarcon/desmos_midi.git
 cd desmos_midi
 ```
 
-Then build the project using the provided script:
+Then build the project using cargo:
 
-**Windows:**
 ```bash
-./build.bat              # Build both CLI and Web UI
-./build.bat --cli-only   # Build only the CLI
-./build.bat --web-only   # Build only the Web UI
+# Build both CLI and Web UI
+cargo build
+
+# Build only the CLI
+cargo build --bin desmos_midi
+
+# Build only the Web UI
+cargo build --bin desmos_midi_web
 ```
 
-**Linux/Mac:**
-```bash
-./build.sh              # Build both CLI and Web UI
-./build.sh --cli-only   # Build only the CLI
-./build.sh --web-only   # Build only the Web UI
-```
-> Note: You may need to run `chmod +x *.sh` first to make the scripts executable if they aren't by default.
+> For production/release builds, add the `--release` flag.
 
 The CLI version has minimal dependencies and is quick to build. The Web UI version includes additional dependencies for the web server and interface.
 
 To clean build artifacts at any time, you can use:
 ```bash
-./clean.bat  # Windows
-./clean.sh   # Linux/Mac
+cargo clean
+```
+
+## Configuration
+
+The application uses a `config.toml` file in the root directory for configuration. If this file doesn't exist, default values will be used.
+
+### Example Configuration
+
+```toml
+[common]
+# Directory where soundfonts are stored
+soundfonts_dir = "soundfonts"
+
+[server]
+# Time in minutes before uploaded files are deleted
+file_expiration_minutes = 10
+
+# Time in minutes before file expiration when refresh should occur
+file_refresh_threshold_minutes = 5
+
+# Maximum file size in megabytes
+max_file_size_mb = 80
+
+# WAV analysis parameter limits
+[server.limits]
+min_samples = 64        # Minimum number of samples (2^6)
+max_samples = 65536     # Maximum number of samples (2^16)
+min_start_time = 0.0    # Minimum start time in seconds
+max_start_time = 300.0  # Maximum start time in seconds (5 minutes)
+min_base_freq = 1.0     # Minimum base frequency in Hz
+max_base_freq = 20000.0 # Maximum base frequency in Hz (human hearing limit)
+min_harmonics = 1       # Minimum number of harmonics
+max_harmonics = 256     # Maximum number of harmonics
+min_boost = 0.5         # Minimum boost factor
+max_boost = 2.0         # Maximum boost factor
 ```
 
 ## Usage
 
 ### Web Interface
 
-For a user-friendly experience, you can use the web interface by running `webui.bat` on Windows, or `webui.sh` on Linux/Mac.
+For a user-friendly experience, you can use the web interface:
+
+```bash
+# Run the web UI
+cargo run --bin desmos_midi_web
+
+# Specify a custom port
+cargo run --bin desmos_midi_web -- --port 9000
+
+# Disable automatic browser opening
+cargo run --bin desmos_midi_web -- --no-open-browser
+
+# Show help
+cargo run --bin desmos_midi_web -- --help
+```
 
 This will start a local web server at `http://localhost:8573` where you can:
 1. Upload MIDI files
@@ -67,33 +113,6 @@ This will start a local web server at `http://localhost:8573` where you can:
 3. Configure soundfonts for each channel
 4. Convert to Desmos formula
 5. Copy the formula to clipboard
-
-You can also navigate to the WAV to Soundfont Converter where you can:
-1. Upload WAV files
-2. Analyze the audio files to generate a soundfont
-3. Configure the analysis parameters
-4. Get a live preview of what the soundfont would sound like
-5. Save the soundfont to your soundfonts
-
-The web server supports the following command-line options:
-
-```bash
-# Basic usage
-./webui.bat  # Windows
-./webui.sh   # Linux/Mac
-
-# Specify a custom port
-./webui.bat --port 9000  # Windows
-./webui.sh --port 9000   # Linux/Mac
-
-# Disable automatic browser opening
-./webui.bat --no-open-browser  # Windows
-./webui.sh --no-open-browser   # Linux/Mac
-
-# Show help
-./webui.bat --help  # Windows
-./webui.sh --help   # Linux/Mac
-```
 
 ### WAV to Soundfont Converter
 
@@ -122,66 +141,106 @@ The converter uses FFT analysis to extract the harmonic content of your audio, w
 
 ### Command Line Interface
 
-Navigate to [this Desmos graph](https://www.desmos.com/calculator/1rzq4xa5v0) to utilize the output of this program.
+The CLI supports two main commands: `midi` for MIDI file processing and `audio` for WAV file analysis.
+
+#### MIDI Processing
 
 **Basic Usage:**
 ```bash
-./cli.bat <midi_file>  # Windows
-./cli.sh <midi_file>   # Linux/Mac
+cargo run --bin desmos_midi -- midi <midi_file>
 ```
-> Note: From now on, we will use `.sh` for the rest of the examples, but if you are on Windows make sure to use the `.bat` versions instead.
 
 **Advanced Usage:**
 ```bash
-./cli.sh <midi_file> -s <soundfont1> <soundfont2> ...  # Specify soundfonts for each channel
-./cli.sh <midi_file> -i                                # Show channel information
+# Specify soundfonts for each channel
+cargo run --bin desmos_midi -- midi <midi_file> -s <soundfont1> <soundfont2> ...
+
+# Show channel information
+cargo run --bin desmos_midi -- midi <midi_file> -i
 ```
 
-### Arguments (CLI)
+##### MIDI Arguments
 - `<midi_file>`: Path to the input MIDI file to convert
 - `-s, --soundfonts <FILES>`: Soundfont files to use for each channel (optional)
 - `-i, --info`: Show MIDI channel information and exit
 - `-c, --copy`: Copy output to clipboard instead of console
 
-### Soundfonts
+##### Soundfonts
 By default:
 - Regular channels use `default` soundfont
 - Drum channels (channel 10) are automatically ignored
 - To include drum sounds or use different soundfonts, use the `-s` option and specify a soundfont for each channel
 - Use `-` as a soundfont name to ignore that channel
 - The `.txt` extension is optional for soundfont files - it will be added automatically if not specified
+- Soundfonts are loaded from the directory specified in `config.toml` (default: "soundfonts")
+
+#### Audio Analysis
+
+The audio analysis command allows you to create soundfonts from WAV files directly from the command line.
+
+**Basic Usage:**
+```bash
+# Outputs sounfont content to console (harmonic weights)
+cargo run --bin desmos_midi -- audio <wav_file>
+```
+
+**Advanced Usage:**
+```bash
+# Customize analysis parameters
+cargo run --bin desmos_midi -- audio <wav_file> --samples 16384 --base-freq 523 --harmonics 32
+
+# Copy to clipboard
+cargo run --bin desmos_midi -- audio <wav_file> -c
+
+# Save soundfont to file
+cargo run --bin desmos_midi -- audio <wav_file> > soundfonts/example.txt
+```
+
+##### Audio Arguments
+- `<wav_file>`: Path to the input WAV file to analyze
+- `--samples <NUM>`: Number of samples to analyze (default: 8192)
+- `--start-time <SECONDS>`: Position in audio to begin analysis (default: 0.0)
+- `--base-freq <HZ>`: Fundamental frequency to analyze (default: 440.0)
+- `--harmonics <NUM>`: Number of harmonics to extract (default: 16)
+- `--boost <FACTOR>`: Amplification factor for harmonics (default: 1.0)
+- `-c, --copy`: Copy output to clipboard instead of console
+
+By default, the command outputs only the soundfont weights directly to the console. Use the `-c` option to copy to the clipboard instead.
 
 ### Usage Examples
 
-1. Basic conversion with default settings (drums ignored):
+1. Basic MIDI conversion with default settings (drums ignored):
 ```bash
-./cli.sh song.mid
+cargo run --bin desmos_midi -- midi song.mid
 ```
 
-2. View channel information:
+2. View MIDI channel information:
 ```bash
-./cli.sh song.mid -i
+cargo run --bin desmos_midi -- midi song.mid -i
 ```
 
-3. Specify custom soundfonts:
+3. Specify custom soundfonts for MIDI:
 ```bash
-./cli.sh song.mid -s default sine - default
-```
-This will use:
-- `default.txt` for channel 1
-- `sine.txt` for channel 2
-- ignore channel 3
-- `default.txt` for channel 4
-
-4. Copy to clipboard instead of console output:
-```bash
-./cli.sh song.mid -c
+cargo run --bin desmos_midi -- midi song.mid -s default sine - default
 ```
 
-Now enable audio in Desmos through the button in the top left:
+4. Create a soundfont from a WAV file:
+```bash
+cargo run --bin desmos_midi -- audio piano_a4.wav
+```
+
+5. Create a soundfont with custom parameters:
+```bash
+cargo run --bin desmos_midi -- audio piano_c5.wav --base-freq 523 --harmonics 32 --boost 1.2
+```
+
+### Graph Usage
+
+Once you've copied desmos output from the midi to desmos converter, navigate to [this Desmos graph](https://www.desmos.com/calculator/1rzq4xa5v0) and paste your input into an empty formula input.
+
+Then, make sure to enable audio in Desmos through the button in the top left:
+
 ![Enable audio](./assets/enable_audio.png)
-
-### Graph Controls
 
 - To play the song, hit the arrow button to the left of the `t -> 0` formula.
 - To end the song, hit the arrow button to the left of the `t -> ∞` formula.
@@ -193,83 +252,6 @@ Now enable audio in Desmos through the button in the top left:
   - `detune`: The amount of detune applied to the secondary tone
   - `volume`: Global volume control
   - `transpose`: Global pitch shift in semitones
-
-## Technical Details
-
-### MIDI Processing
-
-1. **MIDI Parsing**:
-   - Uses the `midly` crate to parse MIDI files
-   - Extracts note events (Note On/Off) and timing information
-   - Handles tempo changes to ensure accurate timing
-   - Preserves note velocities (0-127) for dynamic volume control
-   - Properly tracks note durations for accurate playback
-
-2. **Timing Conversion**:
-   - Converts MIDI ticks to milliseconds using the formula:
-     ```
-     ms = (ticks * tempo) / (ticks_per_quarter * 1000)
-     ```
-   - Where:
-     - `ticks`: MIDI event time in ticks
-     - `tempo`: Microseconds per quarter note (default: 500000 = 120 BPM)
-     - `ticks_per_quarter`: MIDI file's time division (ticks per quarter note)
-
-3. **Note Processing**:
-   - Tracks active notes and their velocities at each timestamp
-   - Converts MIDI note numbers to relative positions from A (MIDI note 69 / 440 Hz)
-   - Each note is paired with its velocity value and duration
-   - Generates a Desmos piecewise function in the format:
-     ```
-     A=\left\{t<1:\left[0,100,0\right],t<2:\left[2,85,0\right],...\right\}
-     ```
-   - Where each note is represented by three values:
-     - Semitones relative to A4 (440Hz)
-     - Velocity (0-127)
-     - Soundfont index
-
-4. **Section Processing**:
-   - If a MIDI file is too long for Desmos to parse, the program will automatically split it into sections
-   - The sections are named `A_{1}`, `A_{2}`, etc.
-   - The main `A` formula selects the appropriate section based on time
-
-5. **Soundfont Processing**:
-   - Soundfonts are stored in the `soundfonts/` directory and are text files containing comma-separated floating point values representing harmonic weights (weights for each frequency in the harmonic series, which can be used to generate a static waveform)
-   - The `B` is a "list of lists" of harmonic weights, however, Desmos does not support nested lists so instead, the `C` value is the maximum size of the soundfont arrays (after padding) and we use that to index sublists in `B`
-
-### Web Interface
-
-The web interface is built using:
-- **Backend**: Axum web framework (Rust)
-- **Frontend**: HTML, CSS, and JavaScript
-- **Features**:
-  - File upload with drag-and-drop support
-  - Dynamic soundfont selection
-  - Real-time MIDI channel information
-  - One-click formula copying
-
-## Dependencies
-
-Core dependencies:
-- `midly`: MIDI file parsing
-- `thiserror`: Derive macro for the Error trait
-- `clap`: Command line argument parsing with derive support
-
-CLI-specific dependencies:
-- `clipboard`: System clipboard integration
-
-Web UI-specific dependencies:
-- `axum`: Modern web framework for building HTTP APIs (with multipart support)
-- `tokio`: Asynchronous runtime for Rust
-- `tower-http`: HTTP components for the Tower middleware framework
-- `tower`: Modular components for building robust clients and servers
-- `serde`: Serialization/deserialization framework
-- `serde_json`: JSON support for serde
-- `tracing`: Application-level tracing framework
-- `tracing-subscriber`: Utilities for implementing and composing tracing subscribers
-- `toml`: TOML file parsing for configuration
-- `rustfft`: Fast Fourier Transform implementation for audio analysis
-- `hound`: WAV file reading and writing
 
 ## Credits
 
