@@ -62,7 +62,7 @@ fi
 
 echo "Build completed successfully!"
 if [ $BUILD_CLI -eq 1 ]; then
-    echo "You can use './convert.sh' to run the CLI."
+    echo "You can use './cli.sh' to run the CLI."
 fi
 if [ $BUILD_WEB -eq 1 ]; then
     echo "You can use './webui.sh' to run the Web UI."

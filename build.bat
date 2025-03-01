@@ -54,7 +54,7 @@ if !ERRORLEVEL! neq 0 (
 
 echo Build completed successfully!
 if !BUILD_CLI! equ 1 (
-    echo You can use './convert.bat' to run the CLI.
+    echo You can use './cli.bat' to run the CLI.
 )
 if !BUILD_WEB! equ 1 (
     echo You can use './webui.bat' to run the Web UI.

@@ -75,11 +75,24 @@ You can also navigate to the WAV to Soundfont Converter where you can:
 4. Get a live preview of what the soundfont would sound like
 5. Save the soundfont to your soundfonts
 
-You can also specify a custom port:
+The web server supports the following command-line options:
 
 ```bash
+# Basic usage
+./webui.bat  # Windows
+./webui.sh   # Linux/Mac
+
+# Specify a custom port
 ./webui.bat --port 9000  # Windows
 ./webui.sh --port 9000   # Linux/Mac
+
+# Disable automatic browser opening
+./webui.bat --no-open-browser  # Windows
+./webui.sh --no-open-browser   # Linux/Mac
+
+# Show help
+./webui.bat --help  # Windows
+./webui.sh --help   # Linux/Mac
 ```
 
 ### WAV to Soundfont Converter
@@ -113,15 +126,15 @@ Navigate to [this Desmos graph](https://www.desmos.com/calculator/1rzq4xa5v0) to
 
 **Basic Usage:**
 ```bash
-./convert.bat <midi_file>  # Windows
-./convert.sh <midi_file>   # Linux/Mac
+./cli.bat <midi_file>  # Windows
+./cli.sh <midi_file>   # Linux/Mac
 ```
 > Note: From now on, we will use `.sh` for the rest of the examples, but if you are on Windows make sure to use the `.bat` versions instead.
 
 **Advanced Usage:**
 ```bash
-./convert.sh <midi_file> -s <soundfont1> <soundfont2> ...  # Specify soundfonts for each channel
-./convert.sh <midi_file> -i                                # Show channel information
+./cli.sh <midi_file> -s <soundfont1> <soundfont2> ...  # Specify soundfonts for each channel
+./cli.sh <midi_file> -i                                # Show channel information
 ```
 
 ### Arguments (CLI)
@@ -142,17 +155,17 @@ By default:
 
 1. Basic conversion with default settings (drums ignored):
 ```bash
-./convert.sh song.mid
+./cli.sh song.mid
 ```
 
 2. View channel information:
 ```bash
-./convert.sh song.mid -i
+./cli.sh song.mid -i
 ```
 
 3. Specify custom soundfonts:
 ```bash
-./convert.sh song.mid -s default sine - default
+./cli.sh song.mid -s default sine - default
 ```
 This will use:
 - `default.txt` for channel 1
@@ -162,7 +175,7 @@ This will use:
 
 4. Copy to clipboard instead of console output:
 ```bash
-./convert.sh song.mid -c
+./cli.sh song.mid -c
 ```
 
 Now enable audio in Desmos through the button in the top left:

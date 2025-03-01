@@ -1,4 +1,3 @@
-use desmos_midi::audio::{analyze_harmonics, read_wav_file, AnalysisConfig, AudioError};
 use axum::{
     extract::{Multipart, Path, Query, State},
     http::{header, StatusCode},
@@ -6,10 +5,11 @@ use axum::{
     routing::{get, post},
     Router,
 };
+use clap::Parser;
+use desmos_midi::audio::{analyze_harmonics, read_wav_file, AnalysisConfig, AudioError};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
-    env,
     fs::File,
     io::Read,
     net::SocketAddr,
@@ -23,6 +23,19 @@ use tower_http::{
     trace::{DefaultMakeSpan, TraceLayer},
 };
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+
+// CLI Arguments
+#[derive(Parser)]
+#[command(author, version, about = "Desmos MIDI Web UI Server")]
+struct Args {
+    /// Port to run the server on
+    #[arg(short, long, default_value_t = 8573)]
+    port: u16,
+
+    /// Don't open browser automatically
+    #[arg(long, default_value_t = false)]
+    no_open_browser: bool,
+}
 
 // Server configuration
 #[derive(Deserialize)]
@@ -51,9 +64,6 @@ struct AnalysisLimits {
     min_boost: f32,
     max_boost: f32,
 }
-
-// Constants
-const DEFAULT_PORT: u16 = 8573;
 
 // App state
 #[derive(Clone)]
@@ -125,6 +135,9 @@ async fn main() {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
+    // Parse command line arguments
+    let args = Args::parse();
+
     // Load configuration
     let config = load_config().unwrap_or_else(|e| {
         tracing::warn!("Failed to load config.toml: {}. Using default values.", e);
@@ -148,9 +161,6 @@ async fn main() {
             },
         }
     });
-
-    // Parse port from command line arguments
-    let port = parse_port_from_args().unwrap_or(DEFAULT_PORT);
 
     // Create temp directory if it doesn't exist
     let temp_dir = PathBuf::from("temp");
@@ -226,27 +236,49 @@ async fn main() {
         );
 
     // Start server
-    let addr = SocketAddr::from(([127, 0, 0, 1], port));
-    tracing::info!("Listening on http://localhost:{}", port);
+    let addr = SocketAddr::from(([127, 0, 0, 1], args.port));
+    tracing::info!("Listening on http://localhost:{}", args.port);
+
+    // Open browser if requested
+    if !args.no_open_browser {
+        open_browser(args.port);
+    }
 
     let listener = TcpListener::bind(&addr).await.unwrap();
     axum::serve(listener, app).await.unwrap();
 }
 
-// Parse port from command line arguments
-// Format: --port XXXX or -p XXXX
-fn parse_port_from_args() -> Option<u16> {
-    let args: Vec<String> = env::args().collect();
+// Open browser based on the operating system
+fn open_browser(port: u16) {
+    let url = format!("http://localhost:{}", port);
 
-    for i in 0..args.len() - 1 {
-        if args[i] == "--port" || args[i] == "-p" {
-            if let Ok(port) = args[i + 1].parse::<u16>() {
-                return Some(port);
+    #[cfg(target_os = "windows")]
+    {
+        use std::process::Command;
+        let _ = Command::new("cmd").args(["/C", "start", &url]).spawn();
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        use std::process::Command;
+        let _ = Command::new("open").arg(&url).spawn();
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        use std::process::Command;
+
+        // Try different commands to open the browser
+        let commands = ["xdg-open", "gnome-open", "sensible-browser"];
+        for cmd in commands {
+            if Command::new(cmd).arg(&url).spawn().is_ok() {
+                break;
             }
         }
     }
 
-    None
+    // For other platforms, just log the URL
+    tracing::info!("Server started. Please open {} in your browser", url);
 }
 
 // Clean up all files in the temp directory
@@ -657,7 +689,10 @@ async fn harmonic_info_handler(
     let limits = &config.limits;
 
     // Get parameters with defaults and limits
-    let samples = params.samples.unwrap_or(8192).clamp(limits.min_samples, limits.max_samples);
+    let samples = params
+        .samples
+        .unwrap_or(8192)
+        .clamp(limits.min_samples, limits.max_samples);
     let start_time = params
         .start_time
         .unwrap_or(0.0)
@@ -695,7 +730,10 @@ async fn harmonic_info_handler(
             StatusCode::INTERNAL_SERVER_ERROR,
             format!("Failed to read WAV file: {}", io_err),
         ),
-        AudioError::WavParse(msg) => (StatusCode::BAD_REQUEST, format!("Invalid WAV file: {}", msg)),
+        AudioError::WavParse(msg) => (
+            StatusCode::BAD_REQUEST,
+            format!("Invalid WAV file: {}", msg),
+        ),
         _ => (
             StatusCode::INTERNAL_SERVER_ERROR,
             format!("Error reading WAV file: {}", e),
