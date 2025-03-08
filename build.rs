@@ -16,4 +16,8 @@ fn main() {
             }
         }
     }
+
+    // Packaging-related instructions (these don't affect the build process)
+    println!("cargo:rerun-if-changed=config.toml");
+    println!("cargo:rerun-if-changed=soundfonts");
 }

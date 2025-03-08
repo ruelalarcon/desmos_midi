@@ -28,3 +28,6 @@ soundfonts/*.txt
 !soundfonts/square.txt
 !soundfonts/saw.txt
 !soundfonts/triangle.txt
+
+# Releases
+package/
