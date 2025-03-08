@@ -161,6 +161,33 @@ For advanced users, a command line interface is also available. The CLI supports
 - `-i, --info`: Show MIDI channel information and exit
 - `-c, --copy`: Copy output to clipboard instead of console
 
+#### Usage Examples
+
+1. Basic MIDI conversion with default settings (drums ignored):
+```bash
+./desmos_midi midi song.mid
+```
+
+2. View MIDI channel information:
+```bash
+./desmos_midi midi song.mid -i
+```
+
+3. Specify custom soundfonts for MIDI:
+```bash
+./desmos_midi midi song.mid -s default sine - default
+```
+
+4. Create a soundfont from a WAV file:
+```bash
+./desmos_midi audio piano_a4.wav
+```
+
+5. Create a soundfont with custom parameters:
+```bash
+./desmos_midi audio piano_c5.wav --base-freq 523 --harmonics 32 --boost 1.2
+```
+
 #### Soundfonts
 By default:
 - Regular channels use `default` soundfont
@@ -241,6 +268,8 @@ cargo build --bin desmos_midi
 # Build only the Web UI
 cargo build --bin desmos_midi_web
 ```
+
+You can also run the program using `cargo run`.
 
 > For production/release builds, add the `--release` flag.
 
