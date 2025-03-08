@@ -25,3 +25,6 @@ soundfonts/
 # Unignore default soundfonts
 !soundfonts/default.txt
 !soundfonts/sine.txt
+!soundfonts/square.txt
+!soundfonts/saw.txt
+!soundfonts/triangle.txt

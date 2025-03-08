@@ -153,6 +153,7 @@ async fn main() {
     let app = Router::new()
         .route("/", get(index_handler))
         .route("/wav-to-soundfont", get(wav_to_soundfont_handler))
+        .route("/soundfont-studio", get(soundfont_studio_handler))
         .route("/upload", post(upload_handler))
         .route("/midi-info/{filename}", get(midi_info_handler))
         .route("/convert", post(convert_handler))
@@ -285,6 +286,12 @@ async fn index_handler() -> impl IntoResponse {
 async fn wav_to_soundfont_handler() -> impl IntoResponse {
     let html = include_str!("static/wav_to_soundfont.html");
     Html(html)
+}
+
+// Handler for the soundfont_studio page
+async fn soundfont_studio_handler() -> impl IntoResponse {
+    let html = include_str!("static/soundfont_studio.html");
+    (StatusCode::OK, Html(html))
 }
 
 // Handler for uploading MIDI files
