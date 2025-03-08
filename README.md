@@ -1,6 +1,6 @@
 # Desmos MIDI Player
 
-> A Rust-based CLI tool and Web UI for converting MIDI files into formulas for Desmos. Complete with support for note velocity, dynamic tempo, custom soundfonts for different channels/instruments, and wav to soundfont conversion utilizing FFT audio analysis.
+> A Rust-based CLI tool and Web UI for converting MIDI files into formulas for Desmos. Complete with support for note velocity, dynamic tempo, custom soundfonts for different channels/instruments, wav to soundfont conversion utilizing FFT audio analysis, and a webpage for creating and visualizing soundfonts from scratch.
 
 ## Installation
 
@@ -138,6 +138,20 @@ The web interface includes a WAV to soundfont converter that allows you to creat
 4. Save the soundfont when you're satisfied with the result
 
 The converter uses FFT analysis to extract the harmonic content of your audio, which can then be used as a soundfont in the MIDI converter.
+
+### Soundfont Studio
+
+The web interface also includes a way to create soundfonts from scratch by adjusting sliders which correspond to values for harmonic weights. Like the WAV to Soundfont Converter, the studio comes with the ability to preview the sound in real-time as you make changes.
+
+Comes with presets that you can start from and begin editing, including:
+
+  - Sine Wave
+  - Square Wave
+  - Triangle Wave
+  - Sawtooth Wave
+  - Organ (Equivalent to the `default.txt` preset)
+
+Once you're satisfied with the result, you can save the soundfont.
 
 ### Command Line Interface
 
