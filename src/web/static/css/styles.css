@@ -571,9 +571,7 @@ a:hover {
 /* Adjust waveform preview to be more prominent */
 .waveform-preview {
     margin: 30px 0;
-    position: sticky;
-    top: 10px;
-    z-index: 10;
+    position: relative;
     background-color: var(--bg-main);
     padding: 10px;
     border-radius: 4px;
