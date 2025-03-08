@@ -238,9 +238,7 @@ cargo run --bin desmos_midi -- audio piano_c5.wav --base-freq 523 --harmonics 32
 
 Once you've copied desmos output from the midi to desmos converter, navigate to [this Desmos graph](https://www.desmos.com/calculator/1rzq4xa5v0) and paste your input into an empty formula input.
 
-Then, make sure to enable audio in Desmos through the button in the top left:
-
-![Enable audio](./assets/enable_audio.png)
+Also, make sure to enable audio in Desmos through the button in the top left.
 
 - To play the song, hit the arrow button to the left of the `t -> 0` formula.
 - To end the song, hit the arrow button to the left of the `t -> ∞` formula.
