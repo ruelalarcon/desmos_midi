@@ -152,6 +152,7 @@ async fn main() {
     // Create router
     let app = Router::new()
         .route("/", get(index_handler))
+        .route("/favicon.ico", get(favicon_handler))
         .route("/wav-to-soundfont", get(wav_to_soundfont_handler))
         .route("/soundfont-studio", get(soundfont_studio_handler))
         .route("/upload", post(upload_handler))
@@ -162,7 +163,10 @@ async fn main() {
         .route("/getfile/{filename}", get(get_file_handler))
         .route("/save-soundfont/{filename}", post(save_soundfont_handler))
         .route("/harmonic-info/{filename}", get(harmonic_info_handler))
-        .nest_service("/static", ServeDir::new(StdPath::new("src/web/static")))
+        .nest_service(
+            "/static",
+            ServeDir::new(StdPath::new(concat!(env!("CARGO_MANIFEST_DIR"), "/src/web/static")))
+        )
         .with_state(state)
         .layer(
             TraceLayer::new_for_http()
@@ -278,19 +282,25 @@ async fn run_file_cleanup(state: Arc<AppState>) {
 
 // Handler for the index page
 async fn index_handler() -> impl IntoResponse {
-    let html = include_str!("static/index.html");
+    let html = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/web/static/index.html"));
     Html(html)
+}
+
+// Handler for the favicon
+async fn favicon_handler() -> impl IntoResponse {
+    let bytes = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/web/static/favicon.ico"));
+    (StatusCode::OK, bytes)
 }
 
 // Handler for the wav_to_soundfont page
 async fn wav_to_soundfont_handler() -> impl IntoResponse {
-    let html = include_str!("static/wav_to_soundfont.html");
+    let html = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/web/static/wav_to_soundfont.html"));
     Html(html)
 }
 
 // Handler for the soundfont_studio page
 async fn soundfont_studio_handler() -> impl IntoResponse {
-    let html = include_str!("static/soundfont_studio.html");
+    let html = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/web/static/soundfont_studio.html"));
     (StatusCode::OK, Html(html))
 }
 
