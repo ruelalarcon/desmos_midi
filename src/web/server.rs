@@ -143,30 +143,6 @@ async fn main() {
         config: Arc::new(server_config),
     });
 
-    // Create static directory and subdirectories if they don't exist
-    let static_dir = PathBuf::from("src/web/static");
-    if !static_dir.exists() {
-        fs::create_dir_all(&static_dir).await.unwrap();
-    }
-
-    // Create js directory
-    let js_dir = static_dir.join("js");
-    if !js_dir.exists() {
-        fs::create_dir_all(&js_dir).await.unwrap();
-    }
-
-    // Create css directory
-    let css_dir = static_dir.join("css");
-    if !css_dir.exists() {
-        fs::create_dir_all(&css_dir).await.unwrap();
-    }
-
-    // Create modules directory inside js
-    let modules_dir = js_dir.join("modules");
-    if !modules_dir.exists() {
-        fs::create_dir_all(&modules_dir).await.unwrap();
-    }
-
     // Start background task for file cleanup
     let cleanup_state = state.clone();
     task::spawn(async move {
