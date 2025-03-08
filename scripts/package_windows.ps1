@@ -56,7 +56,9 @@ $zipPath = Join-Path $outputDir $zipFileName
 if (Test-Path $zipPath) {
     Remove-Item -Force $zipPath
 }
-Add-Type -Assembly System.IO.Compression.FileSystem
-[System.IO.Compression.ZipFile]::CreateFromDirectory($packageDir, $zipPath)
+
+# Use Compress-Archive instead of ZipFile::CreateFromDirectory
+# This preserves the directory structure better
+Compress-Archive -Path $packageDir -DestinationPath $zipPath -Force
 
 Write-Host "Package created at: $zipPath"
