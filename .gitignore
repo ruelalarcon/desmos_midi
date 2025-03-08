@@ -20,7 +20,7 @@ bin/
 temp/
 
 # Soundfonts
-soundfonts/
+soundfonts/*.txt
 
 # Unignore default soundfonts
 !soundfonts/default.txt
