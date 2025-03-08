@@ -1,6 +1,14 @@
 # Desmos MIDI Player
+![GitHub Repo stars](https://img.shields.io/github/stars/ruelalarcon/desmos_midi)
+![GitHub License](https://img.shields.io/github/license/ruelalarcon/desmos_midi)
+![GitHub top language](https://img.shields.io/github/languages/top/ruelalarcon/desmos_midi)
+![GitHub Release](https://img.shields.io/github/v/release/ruelalarcon/desmos_midi)
 
-> A Rust-based CLI tool and Web UI for converting MIDI files into formulas for Desmos. Complete with support for note velocity, dynamic tempo, custom soundfonts for different channels/instruments, wav to soundfont conversion utilizing FFT audio analysis, and a webpage for creating and visualizing soundfonts from scratch.
+<img src="assets/icon.png" height="120" alt="Desmos MIDI Logo by Ruel Nathaniel Alarcon" align="right"/>
+
+> A Rust-based CLI tool and Web UI for converting MIDI files into formulas for Desmos.
+
+Complete with support for note velocity, dynamic tempo, custom soundfonts for different channels/instruments, wav to soundfont conversion utilizing FFT audio analysis, and a webpage for creating and visualizing soundfonts from scratch.
 
 ## Quick Installation
 
@@ -19,6 +27,8 @@ Pre-built releases are available for both Windows and Linux:
 This will start a local web server and automatically open your browser to the application.
 
 ## Web Interface Usage
+
+![381shots_so](https://github.com/user-attachments/assets/e14b6a1d-f563-4bb3-b513-e0bd4f474423)
 
 The web interface provides a user-friendly experience for converting MIDI files to Desmos formulas:
 
@@ -42,6 +52,8 @@ To launch the web interface from the command line with options:
 ```
 
 ### WAV to Soundfont Converter
+
+![649shots_so](https://github.com/user-attachments/assets/735a7fa4-9ecc-435d-b03b-5ae873394cba)
 
 The web interface includes a WAV to soundfont converter that allows you to create custom soundfonts from audio files. To use it:
 
@@ -67,6 +79,8 @@ The web interface includes a WAV to soundfont converter that allows you to creat
 The converter uses FFT analysis to extract the harmonic content of your audio, which can then be used as a soundfont in the MIDI converter.
 
 ### Soundfont Studio
+
+![167shots_so](https://github.com/user-attachments/assets/48665858-867d-4a3c-b2ac-b3d10821428b)
 
 The web interface also includes a way to create soundfonts from scratch by adjusting sliders which correspond to values for harmonic weights. Like the WAV to Soundfont Converter, the studio comes with the ability to preview the sound in real-time as you make changes.
 
