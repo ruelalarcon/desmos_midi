@@ -50,6 +50,6 @@ The resulting package will be placed in the `package` directory and will include
 - The release binaries (`desmos_midi` and `desmos_midi_web`)
 - The configuration file (`config.toml`)
 - The soundfonts directory and its contents
-- README and LICENSE files
+- LICENSE files
 
 The zip file name includes the version from Cargo.toml and the platform name.
