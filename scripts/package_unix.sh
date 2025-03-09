@@ -47,8 +47,7 @@ echo "Copying configuration and soundfonts..."
 cp "config.toml" "$PACKAGE_DIR"
 cp -r "soundfonts" "$PACKAGE_DIR"
 
-# Copy README and LICENSE
-cp "README.md" "$PACKAGE_DIR"
+# Copy LICENSE
 cp "LICENSE.txt" "$PACKAGE_DIR"
 
 # Create zip file

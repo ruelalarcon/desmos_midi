@@ -46,8 +46,7 @@ Write-Host "Copying configuration and soundfonts..."
 Copy-Item "config.toml" -Destination $packageDir
 Copy-Item -Recurse "soundfonts" -Destination $packageDir
 
-# Copy README and LICENSE
-Copy-Item "README.md" -Destination $packageDir
+# Copy LICENSE
 Copy-Item "LICENSE.txt" -Destination $packageDir
 
 # Create zip file
