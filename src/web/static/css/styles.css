@@ -425,17 +425,17 @@ a:hover {
 }
 
 .volume-control {
-    margin-top: 16px;
+    margin-top: 20px;
     padding: 16px;
     background-color: rgba(255, 255, 255, 0.05);
     border-radius: var(--border-radius);
 }
 
-.volume-control small {
-    display: block;
-    margin-top: 8px;
-    color: var(--text-secondary);
-    font-size: 12px;
+.frequency-control {
+    margin-top: 16px;
+    padding: 16px;
+    background-color: rgba(255, 255, 255, 0.05);
+    border-radius: var(--border-radius);
 }
 
 /* Card styles for dashboard-like UI */

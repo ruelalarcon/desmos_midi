@@ -2,7 +2,7 @@
 name = "desmos_midi"
 authors = ["Ruel Nathaniel Alarcon"]
 description = "A Rust-based CLI tool and Web UI for converting MIDI files into formulas for Desmos."
-version = "2.0.1"
+version = "2.0.2"
 edition = "2021"
 license = "MIT"
 repository = "https://github.com/ruelalarcon/desmos_midi"

@@ -15,6 +15,9 @@ const previewStatus = document.getElementById('preview-status');
 const volumeControl = document.getElementById('volume');
 const volumeValue = document.getElementById('volume-value');
 const volumeContainer = document.querySelector('.volume-control');
+const previewFreqControl = document.getElementById('preview-freq');
+const previewFreqValue = document.getElementById('preview-freq-value');
+const frequencyContainer = document.querySelector('.frequency-control');
 
 // Parameter elements
 const samplesSlider = document.getElementById('samples');
@@ -32,7 +35,7 @@ const boostValue = document.getElementById('boost-value');
 let audioContext = null;
 let oscillator = null;
 let gainNode = null;
-const PREVIEW_FREQUENCY = 440; // Fixed A4 note for preview
+let currentPreviewFrequency = 440; // Variable frequency for preview (A4 default)
 
 // State
 let uploadedFilename = null;
@@ -72,6 +75,11 @@ boostSlider.addEventListener('input', () => {
 
 // Volume control
 volumeControl.addEventListener('input', updateVolume);
+
+// Frequency control
+previewFreqControl.addEventListener('input', updatePreviewFreq);
+previewFreqValue.addEventListener('input', handlePreviewFreqInput);
+previewFreqValue.addEventListener('blur', commitPreviewFreqInput);
 
 // Parameter update functions
 function updateSamplesValue() {
@@ -188,6 +196,44 @@ function updateVolume() {
     }
 }
 
+// Frequency control
+function updatePreviewFreq() {
+    currentPreviewFrequency = parseInt(previewFreqControl.value);
+    previewFreqValue.value = currentPreviewFrequency;
+    
+    if (oscillator) {
+        oscillator.frequency.setValueAtTime(currentPreviewFrequency, audioContext.currentTime);
+    }
+}
+
+function handlePreviewFreqInput(event) {
+    const value = parseInt(event.target.value);
+    if (!isNaN(value) && value >= 110 && value <= 880) {
+        previewFreqControl.value = value;
+        currentPreviewFrequency = value;
+        
+        if (oscillator) {
+            oscillator.frequency.setValueAtTime(currentPreviewFrequency, audioContext.currentTime);
+        }
+    }
+}
+
+function commitPreviewFreqInput() {
+    // Ensure the value is within valid range
+    let value = parseInt(previewFreqValue.value);
+    if (isNaN(value)) value = 440;
+    if (value < 110) value = 110;
+    if (value > 880) value = 880;
+    
+    previewFreqValue.value = value;
+    previewFreqControl.value = value;
+    currentPreviewFrequency = value;
+    
+    if (oscillator) {
+        oscillator.frequency.setValueAtTime(currentPreviewFrequency, audioContext.currentTime);
+    }
+}
+
 // Functions
 function handleDragOver(e) {
     e.preventDefault();
@@ -299,6 +345,7 @@ async function analyzeWav(isLiveUpdate = false) {
         resultSection.classList.remove('hidden');
         previewBtn.classList.remove('hidden');
         volumeContainer.classList.remove('hidden');
+        frequencyContainer.classList.remove('hidden');
         saveBtn.classList.remove('hidden');
 
         // Update the preview if it's playing
@@ -409,9 +456,9 @@ function createOscillator() {
         disableNormalization: false
     });
 
-    // Configure oscillator with fixed preview frequency
+    // Configure oscillator with variable preview frequency
     oscillator.setPeriodicWave(wave);
-    oscillator.frequency.value = PREVIEW_FREQUENCY;
+    oscillator.frequency.value = currentPreviewFrequency;
 
     // Configure gain (volume)
     gainNode.gain.value = currentVolume;
@@ -500,9 +547,12 @@ function initializeUI() {
     updateHarmonicsValue();
     updateBoostValue();
     updateVolume();
+    updatePreviewFreq();
 
     // If we have a saved volume value, update the internal state
     currentVolume = volumeControl.value / 100;
+    // Get the current frequency value
+    currentPreviewFrequency = parseInt(previewFreqControl.value);
 
     // Add click handler for preview button
     previewBtn.addEventListener('click', togglePreview);
@@ -511,49 +561,3 @@ function initializeUI() {
 
 // Call initialization when the page loads
 initializeUI();
-
-// Note control
-function updateNote() {
-    const semitones = parseInt(noteControl.value);
-    currentPreviewFrequency = noteToFrequency(semitones);
-    noteValue.value = getNoteName(semitones);
-
-    if (oscillator) {
-        oscillator.frequency.setValueAtTime(currentPreviewFrequency, audioContext.currentTime);
-    }
-}
-
-function commitNoteInput() {
-    const input = noteValue.value.toUpperCase();
-    const match = input.match(/^([A-G]#?)(-?\d+)$/);
-
-    if (match) {
-        const [, note, octave] = match;
-        const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-        const noteIndex = noteNames.indexOf(note);
-
-        if (noteIndex !== -1) {
-            const octaveDiff = parseInt(octave) - 4;
-            const semitones = (noteIndex - 9) + (octaveDiff * 12);
-
-            if (semitones >= -24 && semitones <= 24) {
-                noteControl.value = semitones;
-                updateNote();
-                return;
-            }
-        }
-    }
-
-    // If invalid input, reset to current slider value
-    updateNote();
-}
-
-noteControl.addEventListener('input', updateNote);
-noteValue.addEventListener('blur', commitNoteInput);
-noteValue.addEventListener('keypress', (event) => {
-    if (event.key === 'Enter') {
-        event.preventDefault();
-        commitNoteInput();
-        noteValue.blur();
-    }
-});

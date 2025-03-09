@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WAV to Soundfont Converter</title>
+    <title>Desmos MIDI - WAV to Soundfont Converter</title>
     <link rel="stylesheet" href="/static/css/styles.css">
 </head>
 <body>
@@ -102,7 +102,15 @@
                             <input type="range" id="volume" min="0" max="100" value="50">
                             <div class="value" id="volume-value">50%</div>
                         </div>
-                        <small>Volume does not affect the soundfont, only the preview audio</small>
+                        <div class="parameter frequency-control hidden">
+                            <label for="preview-freq">Frequency</label>
+                            <input type="range" id="preview-freq" min="110" max="880" step="1" value="440">
+                            <div class="value">
+                                <input type="text" id="preview-freq-value" value="440" />
+                                <span class="unit">Hz</span>
+                            </div>
+                        </div>
+                        <small>Volume and frequency settings only affect the preview audio, not the generated soundfont</small>
                     </div>
                     <button id="save-btn" class="copy-btn hidden">Save as Soundfont</button>
                 </div>
