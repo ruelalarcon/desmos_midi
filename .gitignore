@@ -4,7 +4,6 @@ __pycache
 
 # Rust
 target/
-Cargo.lock
 
 # Editors
 .vscode/

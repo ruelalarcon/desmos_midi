@@ -29,7 +29,7 @@ OUTPUT_DIR="package"
 ZIP_FILE="${PACKAGE_NAME}.zip"
 
 echo "Building release binaries..."
-cargo build --release
+cargo build --release --features "cli,webui"
 
 # Create output directory if it doesn't exist
 mkdir -p "$OUTPUT_DIR"

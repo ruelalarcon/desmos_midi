@@ -24,7 +24,7 @@ $outputDir = "package"
 $zipFileName = "${packageName}.zip"
 
 Write-Host "Building release binaries..."
-cargo build --release
+cargo build --release --features "cli,webui"
 
 # Create output directory if it doesn't exist
 if (!(Test-Path $outputDir)) {

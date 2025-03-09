@@ -273,17 +273,17 @@ cd desmos_midi
 Then build the project using cargo:
 
 ```bash
-# Build both CLI and Web UI
+# Build only the CLI (default)
 cargo build
 
-# Build only the CLI
-cargo build --bin desmos_midi
-
 # Build only the Web UI
-cargo build --bin desmos_midi_web
+cargo build --bin desmos_midi_web --features webui
+
+# Build both CLI and Web UI
+cargo build --features "cli,webui"
 ```
 
-You can also run the program using `cargo run`.
+You can also run the program using `cargo run` (for CLI) or `cargo run --bin desmos_midi_web --features webui` (for Web UI).
 
 > For production/release builds, add the `--release` flag.
 
