@@ -9,11 +9,12 @@ target/
 .vscode/
 *.desmos
 
-# Output
+# Data Files
 bin/
 *.exe
 *.midi
 *.mid
+*.wav
 
 # Temporary files
 temp/
@@ -27,6 +28,10 @@ soundfonts/*.txt
 !soundfonts/square.txt
 !soundfonts/saw.txt
 !soundfonts/triangle.txt
+
+# Unignore sample files
+!tests/samples/*.wav
+!tests/samples/*.mid
 
 # Releases
 package/
