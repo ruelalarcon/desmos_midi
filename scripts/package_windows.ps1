@@ -46,6 +46,12 @@ Write-Host "Copying configuration and soundfonts..."
 Copy-Item "config.toml" -Destination $packageDir
 Copy-Item -Recurse "soundfonts" -Destination $packageDir
 
+# Copy static web assets
+Write-Host "Copying static web assets..."
+$staticDir = Join-Path $packageDir "static"
+New-Item -ItemType Directory -Path $staticDir
+Copy-Item -Recurse "src\web\static\*" -Destination $staticDir
+
 # Copy LICENSE
 Copy-Item "LICENSE.txt" -Destination $packageDir
 

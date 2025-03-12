@@ -47,6 +47,11 @@ echo "Copying configuration and soundfonts..."
 cp "config.toml" "$PACKAGE_DIR"
 cp -r "soundfonts" "$PACKAGE_DIR"
 
+# Copy static web assets
+echo "Copying static web assets..."
+mkdir -p "${PACKAGE_DIR}/static"
+cp -r "src/web/static/"* "${PACKAGE_DIR}/static"
+
 # Copy LICENSE
 cp "LICENSE.txt" "$PACKAGE_DIR"
 

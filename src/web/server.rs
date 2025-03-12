@@ -11,6 +11,7 @@ use desmos_midi::config;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
+    env,
     net::SocketAddr,
     path::{Path as StdPath, PathBuf},
     sync::{Arc, Mutex},
@@ -95,6 +96,27 @@ struct HarmonicParams {
     boost: Option<f32>,
 }
 
+// Get the directory where static files are located
+fn get_static_dir() -> PathBuf {
+    // First, try to find a "static" directory next to the executable
+    if let Ok(exe_path) = env::current_exe() {
+        let exe_dir = exe_path.parent().unwrap_or(StdPath::new(""));
+        let static_dir = exe_dir.join("static");
+        if static_dir.exists() && static_dir.is_dir() {
+            return static_dir;
+        }
+    }
+
+    // Fallback to the source directory (for development)
+    let source_static_dir = StdPath::new(concat!(env!("CARGO_MANIFEST_DIR"), "/src/web/static"));
+    if source_static_dir.exists() && source_static_dir.is_dir() {
+        return source_static_dir.to_path_buf();
+    }
+
+    // Final fallback - just return the path and let it fail later with a clear error
+    PathBuf::from("static")
+}
+
 #[tokio::main]
 async fn main() {
     // Initialize tracing
@@ -149,6 +171,10 @@ async fn main() {
         run_file_cleanup(cleanup_state).await;
     });
 
+    // Get the directory for static files
+    let static_dir = get_static_dir();
+    tracing::info!("Using static files from: {}", static_dir.display());
+
     // Create router
     let app = Router::new()
         .route("/", get(index_handler))
@@ -163,10 +189,7 @@ async fn main() {
         .route("/getfile/{filename}", get(get_file_handler))
         .route("/save-soundfont/{filename}", post(save_soundfont_handler))
         .route("/harmonic-info/{filename}", get(harmonic_info_handler))
-        .nest_service(
-            "/static",
-            ServeDir::new(StdPath::new(concat!(env!("CARGO_MANIFEST_DIR"), "/src/web/static")))
-        )
+        .nest_service("/static", ServeDir::new(&static_dir))
         .with_state(state)
         .layer(
             TraceLayer::new_for_http()
@@ -282,26 +305,82 @@ async fn run_file_cleanup(state: Arc<AppState>) {
 
 // Handler for the index page
 async fn index_handler() -> impl IntoResponse {
-    let html = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/web/static/index.html"));
-    Html(html)
+    // Try to read the file from the static directory
+    let static_dir = get_static_dir();
+    let index_path = static_dir.join("index.html");
+
+    match fs::read_to_string(&index_path).await {
+        Ok(content) => Html(content),
+        Err(_) => {
+            // Fallback to the embedded version
+            let html = include_str!(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/src/web/static/index.html"
+            ))
+            .to_string();
+            Html(html)
+        }
+    }
 }
 
 // Handler for the favicon
 async fn favicon_handler() -> impl IntoResponse {
-    let bytes = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/web/static/favicon.ico"));
-    (StatusCode::OK, bytes)
+    // Try to read the file from the static directory
+    let static_dir = get_static_dir();
+    let favicon_path = static_dir.join("favicon.ico");
+
+    match fs::read(&favicon_path).await {
+        Ok(content) => (StatusCode::OK, content),
+        Err(_) => {
+            // Fallback to the embedded version
+            let bytes = include_bytes!(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/src/web/static/favicon.ico"
+            ))
+            .to_vec();
+            (StatusCode::OK, bytes)
+        }
+    }
 }
 
 // Handler for the wav_to_soundfont page
 async fn wav_to_soundfont_handler() -> impl IntoResponse {
-    let html = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/web/static/wav_to_soundfont.html"));
-    Html(html)
+    // Try to read the file from the static directory
+    let static_dir = get_static_dir();
+    let page_path = static_dir.join("wav_to_soundfont.html");
+
+    match fs::read_to_string(&page_path).await {
+        Ok(content) => Html(content),
+        Err(_) => {
+            // Fallback to the embedded version
+            let html = include_str!(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/src/web/static/wav_to_soundfont.html"
+            ))
+            .to_string();
+            Html(html)
+        }
+    }
 }
 
 // Handler for the soundfont_studio page
 async fn soundfont_studio_handler() -> impl IntoResponse {
-    let html = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/web/static/soundfont_studio.html"));
-    (StatusCode::OK, Html(html))
+    // Try to read the file from the static directory
+    let static_dir = get_static_dir();
+    let page_path = static_dir.join("soundfont_studio.html");
+
+    match fs::read_to_string(&page_path).await {
+        Ok(content) => Html(content),
+        Err(_) => {
+            // Fallback to the embedded version
+            let html = include_str!(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/src/web/static/soundfont_studio.html"
+            ))
+            .to_string();
+            Html(html)
+        }
+    }
 }
 
 // Handler for uploading MIDI files
