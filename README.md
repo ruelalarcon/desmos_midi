@@ -15,8 +15,8 @@ Complete with support for note velocity, dynamic tempo, custom soundfonts for di
 Pre-built releases are available for both Windows and Linux:
 
 1. Download the appropriate file for your operating system:
-   - [Windows (64-bit)](https://github.com/ruelalarcon/desmos_midi/releases/download/v2.0.2/desmos_midi_2.0.2_windows_x64.zip)
-   - [Linux (64-bit)](https://github.com/ruelalarcon/desmos_midi/releases/download/v2.0.2/desmos_midi_2.0.2_linux_x86_64.zip)
+   - [Windows (64-bit)](https://github.com/ruelalarcon/desmos_midi/releases/download/v2.0.3/desmos_midi_2.0.3_windows_x64.zip)
+   - [Linux (64-bit)](https://github.com/ruelalarcon/desmos_midi/releases/download/v2.0.3/desmos_midi_2.0.3_linux_x86_64.zip)
 
 2. Extract the ZIP file to a location of your choice
 
