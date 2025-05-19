@@ -10,7 +10,7 @@
 
 Complete with support for note velocity, dynamic tempo, custom soundfonts for different channels/instruments, wav to soundfont conversion utilizing FFT audio analysis, and a webpage for creating and visualizing soundfonts from scratch.
 
-## Example
+## [Video Demonstration](https://www.youtube.com/watch?v=V6WbNca6cxI)
 
 [![Video Preview](https://github.com/user-attachments/assets/99597744-f8d8-43f8-9c89-87b0cc08afbf)](https://www.youtube.com/watch?v=V6WbNca6cxI "Desmos MIDI - At the Speed of Light")
 
